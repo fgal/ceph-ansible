@@ -1,0 +1,45 @@
+---
+# 
+
+- name: check whether multipath is being used
+  command: multipathd show
+  changed_when: false
+  failed_when: false
+  register: has_multipath
+- name: gather whitelisted devices
+  shell: multipathd list devices | grep whitelisted | awk '{print $1}'
+  changed_when: false
+  failed_when: false
+  register: devices_multipath_skip
+  when: "has_multipath.rc == 0"
+- name: gather multipaths, skip first line
+  shell: multipathd list multipaths | awk 'BEGIN{i=0}{if (i == 0 ) {i++} else {print $1}}'
+  changed_when: false
+  failed_when: false
+  register: devices_multipaths
+  when: "has_multipath.rc == 0"
+
+- debug: "msg='has_multipath is {{ has_multipath.rc }}'"
+- debug: "msg='devices_multipath_skip is {{ devices_multipath_skip.stdout_lines }}'"
+- debug: "msg='devices_multipaths is {{ devices_multipaths.stdout_lines }}'"
+
+- name:	check multipaths matching regex
+  shell: echo /dev/mapper/{{ item }}
+  with_items: "{{ devices_multipaths.stdout_lines }}"
+  changed_when: false
+  failed_when: false
+  register: devices_multipath_results
+  when:
+   - devices_multipath_auto
+   - item.find('{{ devices_multipath_regex }}') == 0
+
+- name: get list of selected multipaths
+  set_fact: devices_multipath_list="{{ devices_multipath_results.results | map(attribute='stdout') | select("defined") | list }}"
+- debug: var=devices_multipath_list
+
+- name: combine devices
+  set_fact:
+    devices: "{{ devices_static if not devices_multipath_auto else devices_multipath_list }}"
+
+- debug: var=devices
+
