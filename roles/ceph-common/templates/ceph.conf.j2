@@ -9,7 +9,7 @@ auth client required = none
 auth supported = none
 {% endif %}
 {% if ip_version == 'ipv6'  %}
-ms bind ipv6
+ms bind ipv6 = true
 {% endif %}
 {% if not mon_containerized_deployment_with_kv and not mon_containerized_deployment %}
 fsid = {{ fsid }}
@@ -72,6 +72,12 @@ public network = {{ public_network }}
 {% endif %}
 {% if cluster_network is defined %}
 cluster network = {{ cluster_network }}
+{% endif %}
+{% if rgw_override_bucket_index_max_shards is defined %}
+rgw override bucket index max shards = {{ rgw_override_bucket_index_max_shards }}
+{% endif %}
+{% if rgw_bucket_default_quota_max_objects is defined %}
+rgw bucket default quota max objects = {{ rgw_bucket_default_quota_max_objects }}
 {% endif %}
 
 [client.libvirt]

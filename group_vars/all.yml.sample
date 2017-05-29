@@ -39,6 +39,7 @@ dummy:
 #rbdmirror_group_name: rbdmirrors
 #client_group_name: clients
 #iscsi_group_name: iscsigws
+#mgr_group_name: mgrs
 
 # If check_firewall is true, then ansible will try to determine if the
 # Ceph ports are blocked by a firewall. If the machine running ansible
@@ -56,34 +57,22 @@ dummy:
 #debian_package_dependencies:
 #  - python-pycurl
 #  - hdparm
-#  - ntp
 
 #centos_package_dependencies:
 #  - python-pycurl
 #  - hdparm
 #  - epel-release
-#  - ntp
 #  - python-setuptools
 #  - libselinux-python
 
 #redhat_package_dependencies:
 #  - python-pycurl
 #  - hdparm
-#  - ntp
 #  - python-setuptools
 
 # Enable the ntp service by default to avoid clock skew on
 # ceph nodes
 #ntp_service_enabled: true
-
-# The list of ceph packages needed for debian.
-# This variable should only be changed if packages are not available from a given
-# install source or architecture.
-#debian_ceph_packages:
-#  - ceph
-#  - ceph-common    #|--> yes, they are already all dependencies from 'ceph'
-#  - ceph-fs-common #|--> however while proceding to rolling upgrades and the 'ceph' package upgrade
-#  - ceph-fuse      #|--> they don't get update so we need to force them
 
 # Whether or not to install the ceph-test package.
 #ceph_test: False
@@ -114,9 +103,10 @@ dummy:
 
 # COMMUNITY VERSION
 #ceph_stable: false # use ceph stable branch
+#ceph_mirror: http://download.ceph.com
 #ceph_stable_key: https://download.ceph.com/keys/release.asc
-#ceph_stable_release: jewel # ceph stable release
-#ceph_stable_repo: "http://download.ceph.com/debian-{{ ceph_stable_release }}"
+#ceph_stable_release: kraken # ceph stable release
+#ceph_stable_repo: "{{ ceph_mirror }}/debian-{{ ceph_stable_release }}"
 
 ######################################
 # Releases name to number dictionary #
@@ -130,6 +120,7 @@ dummy:
 #  infernalis: 9
 #  jewel: 10
 #  kraken: 11
+#  luminous: 12
 
 # Use the option below to specify your applicable package tree, eg. when using non-LTS Ubuntu versions
 # # for a list of available Debian distributions, visit http://download.ceph.com/debian-{{ ceph_stable_release }}/dists/
@@ -258,6 +249,7 @@ dummy:
 #
 # You must define either monitor_interface or monitor_address. Preference
 # will go to monitor_interface if both are defined.
+# To use an IPv6 address, use the monitor_address setting instead (and set ip_version to ipv6)
 #monitor_interface: interface
 #monitor_address: 0.0.0.0
 # set to either ipv4 or ipv6, whichever your network is using
@@ -292,9 +284,9 @@ dummy:
 #
 #radosgw_dns_name: your.subdomain.tld # subdomains used by radosgw. See http://ceph.com/docs/master/radosgw/config/#enabling-subdomain-s3-calls
 #radosgw_resolve_cname: false # enable for radosgw to resolve DNS CNAME based bucket names
-#radosgw_civetweb_port: 8080 # on Infernalis we get: "set_ports_option: cannot bind to 80: 13 (Permission denied)"
-#radosgw_civetweb_bind_ip: "{{ ansible_default_ipv4.address }}"
-#radosgw_civetweb_num_threads: 50
+#radosgw_civetweb_port: 8080
+#radosgw_civetweb_bind_ip: "{{ ansible_default_ipv4.address }}" # when using ipv6 enclose with brackets: "[{{ ansible_default_ipv6.address }}]"
+#radosgw_civetweb_num_threads: 100
 # For additional civetweb configuration options available such as SSL, logging,
 # keepalive, and timeout settings, please see the civetweb docs at
 # https://github.com/civetweb/civetweb/blob/master/docs/UserManual.md
@@ -339,6 +331,21 @@ dummy:
 # if you don't want it keep the option commented
 #common_single_host_mode: true
 
+## Handlers - restarting daemons after a config change
+# if for whatever reasons the content of your ceph configuration changes
+# ceph daemons will be restarted as well. At the moment, we can not detect
+# which config option changed so all the daemons will be restarted. Although
+# this restart will be serialized for each node, in between a health check
+# will be performed so we make sure we don't move to the next node until
+# ceph is not healthy
+# Obviously between the checks (for monitors to be in quorum and for osd's pgs
+# to be clean) we have to wait. These retries and delays can be configurable
+# for both monitors and osds.
+#handler_health_mon_check_retries: 5
+#handler_health_mon_check_delay: 10
+#handler_health_osd_check_retries: 40
+#handler_health_osd_check_delay: 30
+#handler_health_osd_check: true
 
 ###################
 # CONFIG OVERRIDE #
@@ -367,7 +374,6 @@ dummy:
 #  - { name: kernel.pid_max, value: 4194303 }
 #  - { name: fs.file-max, value: 26234859 }
 #  - { name: vm.zone_reclaim_mode, value: 0 }
-#  - { name: vm.vfs_cache_pressure, value: 50 }
 #  - { name: vm.swappiness, value: 10 }
 #  - { name: vm.min_free_kbytes, value: "{{ vm_min_free_kbytes }}" }
 
@@ -377,6 +383,8 @@ dummy:
 ##########
 
 #docker: false
+#ceph_docker_image: "ceph/daemon"
+#ceph_docker_image_tag: latest
 
 # Do not comment the following variables mon_containerized_deployment_* here. These variables are being used
 # by ceph.conf.j2 template. so it should always be defined
@@ -391,4 +399,19 @@ dummy:
 #nfs_file_gw: true
 # Set this to true to enable Object access via NFS. Requires an RGW role.
 #nfs_obj_gw: false
+
+# this is only here for usage with the rolling_update.yml playbook
+# do not ever change this here
+#rolling_update: false
+
+#ceph_docker_registry: docker.io
+#ceph_docker_enable_centos_extra_repo: false
+
+#mon_use_fqdn: false # if set to true, the MON name used will be the fqdn
+
+# Set uid/gid to default '64045' for bootstrap directories.
+# '64045' is used for debian based distros. It must be set to 167 in case of rhel based distros.
+# These values have to be set according to the base OS used by the container image, NOT the host.
+#bootstrap_dirs_owner: "64045"
+#bootstrap_dirs_group: "64045"
 

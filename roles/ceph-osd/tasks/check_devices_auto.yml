@@ -1,6 +1,6 @@
 ---
 - name: check if the device is a partition (autodiscover disks)
-  shell: "readlink -f /dev/{{ item.key }} | egrep '/dev/([hsv]d[a-z]{1,2}|cciss/c[0-9]d[0-9]p|nvme[0-9]n[0-9]p)[0-9]{1,2}$'"
+  shell: "readlink -f /dev/{{ item.key }} | egrep '/dev/([hsv]d[a-z]{1,2}|cciss/c[0-9]d[0-9]p|nvme[0-9]n[0-9]p)[0-9]{1,2}|fio[a-z]{1,2}[0-9]{1,2}$'"
   with_dict: "{{ ansible_devices }}"
   changed_when: false
   failed_when: false
@@ -21,6 +21,7 @@
     - ansible_devices is defined
     - item.value.removable == "0"
     - item.value.partitions|count == 0
+    - item.value.holders|count == 0
 
 - name: fix partitions gpt header or labels of the osd disks (autodiscover disks)
   shell: "sgdisk --zap-all --clear --mbrtogpt -- '/dev/{{ item.0.item.key }}' || sgdisk --zap-all --clear --mbrtogpt -- '/dev/{{ item.0.item.key }}'"
@@ -32,6 +33,7 @@
     - ansible_devices is defined
     - item.0.item.value.removable == "0"
     - item.0.item.value.partitions|count == 0
+    - item.0.item.value.holders|count == 0
     - item.0.rc != 0
 
 - name: check if a partition named 'ceph' exists (autodiscover disks)
