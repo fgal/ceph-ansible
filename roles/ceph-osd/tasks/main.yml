@@ -6,6 +6,10 @@
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
   static: False
 
+- include: create_devices_list.yml
+  # FG: Always execute: map devices_static to devices, or create devices from devices_multipath_regex when devices_multipath_auto
+  static: False
+
 - include: ./scenarios/journal_collocation.yml
   when:
     - journal_collocation

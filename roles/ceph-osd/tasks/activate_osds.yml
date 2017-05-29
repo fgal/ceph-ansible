@@ -13,6 +13,10 @@
     - journal_collocation
     - osd_auto_discovery
 
+- debug: "msg='journal_collocation is {{ journal_collocation }}'"
+- debug: "msg='osd_auto_discovery  is {{ osd_auto_discovery }}'"
+- debug: "msg='raw_multi_journal   is {{ raw_multi_journal }}'"
+
 - name: activate osd(s) when device is a disk
   command: ceph-disk activate {{ item.1 | regex_replace('^(\/dev\/cciss\/c[0-9]{1}d[0-9]{1})$', '\\1p') }}1
   with_together:
@@ -76,6 +80,42 @@
   when:
     - not item.0.get("skipped")
     - item.0.get("rc", 0) == 0
+    - not osd_auto_discovery
+
+#FG: Activate partition when device is multipath: allow for both "p1" or "1" on partition names
+- name: find out what partition was created for each device (/dev/mapper/ case), assume ceph ends with '1'
+  shell: "ls -1 {{ item.1 }}* | grep {{ item.1 }} | grep 1$ "
+  register: devices_ceph_partition
+  with_together:
+    - "{{ ispartition_results.results }}"
+    - "{{ devices|unique }}"
+  when:
+    - not item.0.get("skipped")
+    - item.0.get("rc", 0) != 0
+    - not osd_auto_discovery
+
+# - debug: var=ispartition_results.results
+- debug: "msg='devices_ceph_partition is {{ devices_ceph_partition }}'"
+- debug: var=devices_ceph_partition.results
+- debug: var=crush_location
+- debug: var=item.1.stdout
+  with_together:
+    - "{{ ispartition_results.results }}"
+    - "{{ devices_ceph_partition.results }}"
+  when:
+    - not item.0.get("skipped")
+    - item.0.get("rc", 0) != 0
+    - not osd_auto_discovery
+- name: activate osd(s) when device is a /dev/mapper/ partition
+  command: "ceph-disk activate {{ item.1.stdout }}"
+  with_together:
+    - "{{ ispartition_results.results }}"
+    - "{{ devices_ceph_partition.results }}"
+  changed_when: false
+  failed_when: false
+  when:
+    - not item.0.get("skipped")
+    - item.0.get("rc", 0) != 0
     - not osd_auto_discovery
 
 - include: osd_fragment.yml
