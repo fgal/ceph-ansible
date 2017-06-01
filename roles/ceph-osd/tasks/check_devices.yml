@@ -24,7 +24,7 @@
 
 - name: check the journal device is partition
   shell: "readlink -f {{ item }} | egrep '/dev/([hsv]d[a-z]{1,2}|cciss/c[0-9]d[0-9]p|nvme[0-9]n[0-9]p)[0-9]{1,2}|fio[a-z]{1,2}[0-9]{1,2}$'"
-  with_items: "{{ raw_journal_devices }}"
+  with_items: "{{ raw_journal_devices|unique }}"
   changed_when: false
   failed_when: false
   always_run: true
@@ -43,13 +43,56 @@
     - (raw_multi_journal or dmcrypt_dedicated_journal)
     - item.0.rc != 0
 
+- name: make sure the partition exists on this host
+  stat:
+    path: "{{ item.1 }}"
+  with_together:
+    - "{{ journal_ispartition_results.results }}"
+    - "{{ raw_journal_devices|unique }}"
+  changed_when: false
+  failed_when: false
+  always_run: true
+  register: journal_partition_exists
+  when:
+    - (raw_multi_journal or dmcrypt_dedicated_journal)
+    - item.0.rc != 0
+
+- debug: "msg='Journal_ispartition_results is {{ journal_ispartition_results }}'"
+- debug: "msg='Journal_partition_status is {{ journal_partition_status }}'"
+- debug: "msg='Raw_journal_devices_unique is {{ raw_journal_devices|unique }}'"
+- debug: "msg='Journal_partition_exists is {{ journal_partition_exists }}'"
+
 - name: fix partitions gpt header or labels of the journal devices
   shell: "sgdisk --zap-all --clear --mbrtogpt -- {{ item.1 }} || sgdisk --zap-all --clear --mbrtogpt -- {{ item.1 }}"
   with_together:
     - "{{ journal_partition_status.results }}"
     - "{{ raw_journal_devices|unique }}"
+    - "{{ journal_partition_exists.results }}"
   changed_when: false
   when:
     - (raw_multi_journal or dmcrypt_dedicated_journal)
     - not item.0.get("skipped")
     - item.0.get("rc", 0) != 0
+    - item.2 not defined or item.2.stat.exists
+
+- block:
+  - name: get list of journal devices on this host
+    set_fact: raw_journal_devices_here="{{ journal_partition_exists.results | map(attribute='stat') | map(attribute='path') | select("defined") | list }}"
+  - debug: var=raw_journal_devices_here
+
+  - name: prepare raw_journal_devices_here_full list matching devices list length
+    command: "echo {{ raw_journal_devices_here|random }}"
+    with_items:
+    - "{{ devices }}"
+    register: raw_journal_devices_here_long
+    when:
+     - devices|length > raw_journal_devices_here|length
+  - name: define raw_journal_devices_here_full
+    set_fact:
+      raw_journal_devices_here_full: "{{ raw_journal_devices_here_long.results | map(attribute='stdout') | list }}"
+
+  - name: define raw_journal_devices_full list
+    set_fact:
+      raw_journal_devices_full: "{{ raw_journal_devices if ( devices | length ) == ( raw_journal_devices_here | length ) else raw_journal_devices_here_full }}"
+  when:
+  - raw_multi_journal

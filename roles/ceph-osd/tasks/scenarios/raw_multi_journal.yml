@@ -12,7 +12,7 @@
   with_together:
     - "{{ parted_results.results }}"
     - "{{ devices }}"
-    - "{{ raw_journal_devices }}"
+    - "{{ raw_journal_devices_full }}"
   changed_when: false
   when:
     - item.0.get("skipped") or item.0.get("rc", 0) != 0
