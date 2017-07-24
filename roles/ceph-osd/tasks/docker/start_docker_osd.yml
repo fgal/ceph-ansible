@@ -30,7 +30,6 @@
     -v /dev:/dev \
     -v /etc/localtime:/etc/localtime:ro \
     -e "OSD_DEVICE={{ item.0 }}" \
-    -e "OSD_JOURNAL_UUID=$(python -c "import uuid; print uuid.uuid5(uuid.NAMESPACE_DNS, '{{ ansible_machine_id }}{{ item.0 }}')")" \
     -e CEPH_DAEMON=OSD_CEPH_DISK_PREPARE \
     {{ ceph_osd_docker_prepare_env }} \
     "{{ ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }}"
@@ -40,7 +39,7 @@
   when:
     - item.1.get("rc", 0) != 0
     - ceph_osd_docker_prepare_env is defined
-    - not osd_containerized_deployment_with_kv
+    - not containerized_deployment_with_kv
 
 - name: prepare ceph osd disk with kv_store
   shell: |
@@ -51,7 +50,6 @@
     -v /dev:/dev \
     -v /etc/localtime:/etc/localtime:ro \
     -e "OSD_DEVICE={{ item.0 }}" \
-    -e "OSD_JOURNAL_UUID=$(python -c "import uuid; print uuid.uuid5(uuid.NAMESPACE_DNS, '{{ ansible_machine_id }}{{ item.0 }}')")" \
     -e "{{ ceph_osd_docker_prepare_env }}" \
     -e CEPH_DAEMON=OSD_CEPH_DISK_PREPARE \
     -e KV_TYPE={{kv_type}} \
@@ -65,7 +63,7 @@
   when:
     - item.1.get("rc", 0) != 0
     - ceph_osd_docker_prepare_env is defined
-    - osd_containerized_deployment_with_kv
+    - containerized_deployment_with_kv
 
 - name: generate ceph osd docker run script
   become: true

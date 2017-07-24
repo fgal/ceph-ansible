@@ -22,6 +22,7 @@ MGRS            = settings['mgr_vms']
 PUBLIC_SUBNET   = settings['public_subnet']
 CLUSTER_SUBNET  = settings['cluster_subnet']
 BOX             = settings['vagrant_box']
+CLIENT_BOX      = settings['client_vagrant_box'] || settings['vagrant_box']
 BOX_URL         = settings['vagrant_box_url']
 SYNC_DIR        = settings['vagrant_sync_dir']
 MEMORY          = settings['memory']
@@ -73,15 +74,8 @@ ansible_provision = proc do |ansible|
   # In a production deployment, these should be secret
   if DOCKER then
     ansible.extra_vars = ansible.extra_vars.merge({
-      mon_containerized_deployment: 'true',
-      osd_containerized_deployment: 'true',
-      mds_containerized_deployment: 'true',
-      rgw_containerized_deployment: 'true',
-      nfs_containerized_deployment: 'true',
-      restapi_containerized_deployment: 'true',
-      rbd_mirror_containerized_deployment: 'true',
-      mgr_containerized_deployment: 'true',
-      ceph_mon_docker_interface: ETH,
+      containerized_deployment: 'true',
+      monitor_interface: ETH,
       ceph_mon_docker_subnet: "#{PUBLIC_SUBNET}.0/24",
       ceph_osd_docker_devices: settings['disks'],
       devices: settings['disks'],
@@ -224,6 +218,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   (0..CLIENTS - 1).each do |i|
     config.vm.define "#{LABEL_PREFIX}client#{i}" do |client|
+      client.vm.box = CLIENT_BOX
       client.vm.hostname = "#{LABEL_PREFIX}ceph-client#{i}"
       if ASSIGN_STATIC_IP
         client.vm.network :private_network,
@@ -511,7 +506,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         # always make /dev/sd{a/b/c} so that CI can ensure that
         # virtualbox and libvirt will have the same devices to use for OSDs
         (0..2).each do |d|
-          lv.storage :file, :device => "hd#{driverletters[d]}", :path => "disk-#{i}-#{d}-#{DISK_UUID}.disk", :size => '12G', :bus => "ide"
+          lv.storage :file, :device => "hd#{driverletters[d]}", :path => "disk-#{i}-#{d}-#{DISK_UUID}.disk", :size => '50G', :bus => "ide"
         end
         lv.memory = MEMORY
         lv.random_hostname = true
