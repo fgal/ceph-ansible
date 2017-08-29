@@ -1,0 +1,34 @@
+---
+# This playbook will run "ceph-disk activate-all" on all
+# OSD servers in your cluster
+#
+
+- name: Run on mons
+  vars:
+    mon_group_name: mons
+    osd_group_name: osds
+
+  hosts:
+  - "{{ mon_group_name }}"
+  - "{{ osd_group_name }}"
+  become: True
+  gather_facts: False
+
+  tasks:
+
+  - name: On first MON, set the noout flag
+    command: ceph --cluster {{ cluster }} osd set noout
+    run_once: true
+    when:
+     - "'{{ mon_group_name }}' in group_names"
+
+  - name: On OSD, run ceph-disk activate-all... please be patient...
+    command: ceph-disk activate-all
+    when:
+     - "'{{ osd_group_name }}' in group_names"
+
+  - name: On first MON, unset the noout flag
+    command: ceph --cluster {{ cluster }} osd unset noout
+    run_once: true
+    when:
+     - "'{{ mon_group_name }}' in group_names"
