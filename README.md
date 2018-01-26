@@ -1,3 +1,13 @@
+Localized version of ceph-ansible
+=================================
+
+Assume you handle local clusters in a separately maintained package.
+Make sure you create a symlink ``cluster-primary`` to the main
+directory of such package: the symlink name has to be as indicated,
+since it is referenced in other parts of this package, like
+``infrastructure-playbooks``.
+
+
 ceph-ansible
 ============
 
