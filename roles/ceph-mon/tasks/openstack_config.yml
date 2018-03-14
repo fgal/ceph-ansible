@@ -1,9 +1,17 @@
 ---
 - name: create openstack pool(s)
-  command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd pool create {{ item.name }} {{ item.pg_num }} {{ item.rule_name }}"
+  command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd pool create {{ item.name }} {{ item.pg_num }} {{ item.rule_name|default('') }}"
   with_items: "{{ openstack_pools | unique }}"
   changed_when: false
   failed_when: false
+
+- name: assign rbd application to pool(s)
+  command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd pool application enable {{ item.name }} rbd"
+  with_items: "{{ openstack_pools | unique }}"
+  changed_when: false
+  failed_when: false
+  when:
+    - ceph_release_num[ceph_release] >= ceph_release_num['luminous']
 
 # A future version could use "--caps CAPSFILE"
 # which will set all of capabilities associated with a given key, for all subsystems
@@ -50,15 +58,25 @@
     - openstack_config
     - item.0 != groups[mon_group_name] | last
 
-- name: setfacl for openstack key(s)
-  acl:
-    path: "/etc/ceph/{{ cluster }}.{{ item.0.name }}.keyring"
-    entry: "{{ item.1 }}"
-    state: present
-  with_subelements:
+- name: chmod openstack key(s) on the other mons and this mon
+  file:
+    path: "/etc/ceph/{{ cluster }}.{{ item.1.name }}.keyring"
+    mode: "{{ item.1.mode|default(omit) }}" # if mode not in list, uses mode from ps umask
+  with_nested:
+    - "{{ groups[mon_group_name] }}"
     - "{{ openstack_keys }}"
-    - acls
-    - skip_missing: true
+  delegate_to: "{{ item.0 }}"
   when:
+    - openstack_config
+    - cephx
+
+- name: setfacl for openstack key(s) on the other mons and this mon
+  command: "setfacl -m {{ item.1.acls | join(',') }} /etc/ceph/{{ cluster }}.{{ item.1.name }}.keyring"
+  with_nested:
+    - "{{ groups[mon_group_name] }}"
+    - "{{ openstack_keys }}"
+  delegate_to: "{{ item.0 }}"
+  when:
+    - item.1.get('acls', []) | length > 0
     - openstack_config
     - cephx

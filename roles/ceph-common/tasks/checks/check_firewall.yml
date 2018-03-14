@@ -1,11 +1,13 @@
 ---
 - name: check if nmap is installed
-  local_action: shell command -v nmap
+  local_action:
+    module: command
+      command -v nmap
   changed_when: false
   failed_when: false
   register: nmapexist
   run_once: true
-  always_run: true
+  check_mode: no
 
 - name: inform that nmap is not present
   debug:
@@ -15,11 +17,13 @@
     - nmapexist.rc != 0
 
 - name: check if monitor port is not filtered
-  local_action: shell set -o pipefail && nmap -p 6789 {{ hostvars[inventory_hostname]['ansible_' + monitor_interface]['ipv4']['address'] if hostvars[inventory_hostname]['ansible_' + monitor_interface] is defined else hostvars[inventory_hostname]['monitor_address'] }} | grep -sqo -e filtered -e '0 hosts up'
+  local_action:
+    module: shell
+      set -o pipefail && nmap -p 6789 {{ hostvars[inventory_hostname]['ansible_' + monitor_interface]['ipv4']['address'] if hostvars[inventory_hostname]['ansible_' + monitor_interface] is defined else hostvars[inventory_hostname]['monitor_address'] }} | grep -sqo -e filtered -e '0 hosts up'
   changed_when: false
   failed_when: false
   register: monportstate
-  always_run: true
+  check_mode: no
   when:
     - mon_group_name in group_names
     - nmapexist.rc == 0
@@ -33,11 +37,13 @@
     - monportstate.rc == 0
 
 - name: check if osd and mds range is not filtered (osd hosts)
-  local_action: shell set -o pipefail && nmap -p 6800-7300 {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
+  local_action:
+    module: shell
+      set -o pipefail && nmap -p 6800-7300 {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
   changed_when: false
   failed_when: false
   register: osdrangestate
-  always_run: true
+  check_mode: no
   when:
     - osd_group_name in group_names
     - nmapexist.rc == 0
@@ -51,11 +57,13 @@
     - osdrangestate.rc == 0
 
 - name: check if osd and mds range is not filtered (mds hosts)
-  local_action: shell set -o pipefail && nmap -p 6800-7300 {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
+  local_action:
+    module: shell
+      set -o pipefail && nmap -p 6800-7300 {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
   changed_when: false
   failed_when: false
   register: mdsrangestate
-  always_run: true
+  check_mode: no
   when:
     - mds_group_name in group_names
     - nmapexist.rc == 0
@@ -69,11 +77,13 @@
     - mdsrangestate.rc == 0
 
 - name: check if rados gateway port is not filtered
-  local_action: shell set -o pipefail && nmap -p {{ radosgw_civetweb_port }} {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
+  local_action:
+    module: shell
+      set -o pipefail && nmap -p {{ radosgw_civetweb_port }} {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
   changed_when: false
   failed_when: false
   register: rgwportstate
-  always_run: true
+  check_mode: no
   when:
     - rgw_group_name in group_names
     - nmapexist.rc == 0
@@ -87,11 +97,13 @@
     - rgwportstate.rc == 0
 
 - name: check if NFS ports are not filtered
-  local_action: shell set -o pipefail && nmap -p 111,2049 {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
+  local_action:
+    module: shell
+      set -o pipefail && nmap -p 111,2049 {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} | grep -sqo -e filtered -e '0 hosts up'
   changed_when: false
   failed_when: false
   register: nfsportstate
-  always_run: true
+  check_mode: no
   when:
     - nfs_group_name in group_names
     - nmapexist.rc == 0

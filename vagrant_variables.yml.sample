@@ -43,6 +43,7 @@ disks: [ '/dev/sdb', '/dev/sdc' ]
 #
 # Ubuntu: ceph/ubuntu-xenial or bento/ubuntu-16.04 or ubuntu/trusty64 or ubuntu/wily64
 # CentOS: bento/centos-7.1 or puppetlabs/centos-7.0-64-puppet
+# openSUSE: opensuse/openSUSE-42.3-x86_64
 # libvirt CentOS: centos/7
 # parallels Ubuntu: parallels/ubuntu-14.04
 # Debian: deb/jessie-amd64 - be careful the storage controller is named 'SATA Controller'
@@ -61,7 +62,6 @@ vagrant_sync_dir: /home/vagrant/sync
 # vagrant_box_url: https://download.fedoraproject.org/pub/fedora/linux/releases/22/Cloud/x86_64/Images/Fedora-Cloud-Base-Vagrant-22-20150521.x86_64.vagrant-virtualbox.box
 
 os_tuning_params:
-  - { name: kernel.pid_max, value: 4194303 }
   - { name: fs.file-max, value: 26234859 }
 
 # Debug mode, runs Ansible with -vvvv

@@ -19,50 +19,32 @@
 - debug: "msg='raw_multi_journal   is {{ raw_multi_journal }}'"
 
 - name: activate osd(s) when device is a disk
-  command: ceph-disk activate {{ item.1 | regex_replace('^(\/dev\/cciss\/c[0-9]{1}d[0-9]{1})$', '\\1p') }}1
-  with_together:
-    - "{{ ispartition_results.results }}"
+  command: ceph-disk activate "{{ item }}{%- if 'nvme' in item or 'cciss' in item or 'loop' in item %}{{ 'p' }}{%- endif %}{%- if 'mpath' in item %}{{ '-part' }}{%- endif %}{{ '1' }}"
+  with_items:
     - "{{ devices|unique }}"
   changed_when: false
-  failed_when: false
   register: activate_osd_disk
   when:
-    - not item.0.get("skipped")
-    - item.0.get("rc", 0) != 0
     - not osd_auto_discovery
-    - raw_multi_journal
-
-- name: automatically activate osd disk(s) without partitions (dmcrypt)
-  command: ceph-disk activate --dmcrypt "/dev/{{ item.key }}"
-  ignore_errors: true
-  with_dict: "{{ ansible_devices }}"
-  when:
-    - ansible_devices is defined
-    - item.value.removable == "0"
-    - item.value.partitions|count == 0
-    - item.value.holders|count == 0
-    - osd_auto_discovery
-    - dmcrypt_journal_collocation
+    - not dmcrypt
+    - item != '/dev/dead'
 
 - name: activate osd(s) when device is a disk (dmcrypt)
-  command: ceph-disk activate --dmcrypt {{ item.1 | regex_replace('^(\/dev\/cciss\/c[0-9]{1}d[0-9]{1})$', '\\1p') }}1
-  with_together:
-    - "{{ ispartition_results.results }}"
+  command: ceph-disk activate --dmcrypt "{{ item }}{%- if 'nvme' in item or 'cciss' in item or 'loop' in item %}{{ 'p' }}{%- endif %}{%- if 'mpath' in item %}{{ '-part' }}{%- endif %}{{ '1' }}"
+  with_items:
     - "{{ devices|unique }}"
   changed_when: false
-  failed_when: false
   register: activate_osd_disk_dmcrypt
   when:
-    - not item.0.get("skipped")
-    - item.0.get("rc", 0) != 0
     - not osd_auto_discovery
-    - dmcrypt_dedicated_journal
+    - dmcrypt
+    - item != '/dev/dead'
 
 # NOTE (leseb): we must do this because of
 # https://github.com/ansible/ansible/issues/4297
-- name: combine ispartition results
+- name: set_fact combined_activate_osd_disk_results
   set_fact:
-    combined_activate_osd_disk_results: "{{ activate_osd_disk if not dmcrypt_journal_collocation else activate_osd_disk_dmcrypt }}"
+    combined_activate_osd_disk_results: "{{ activate_osd_disk if osd_scenario != 'collocated' else activate_osd_disk_dmcrypt }}"
 
 - name: fail if ceph-disk cannot create an OSD
   fail:
@@ -70,19 +52,6 @@
   when:
     " 'ceph-disk: Error: ceph osd create failed' in item.get('stderr', '') "
   with_items: "{{ (combined_activate_osd_disk_results|default({})).results|default([]) }}"
-
-# NOTE (leseb): this task is for partitions because we don't explicitly use a partition.
-- name: activate osd(s) when device is a partition
-  command: "ceph-disk activate {{ item.1 }}"
-  with_together:
-    - "{{ ispartition_results.results }}"
-    - "{{ devices|unique }}"
-  changed_when: false
-  failed_when: false
-  when:
-    - not item.0.get("skipped")
-    - item.0.get("rc", 0) == 0
-    - not osd_auto_discovery
 
 #FG: Activate partition when device is multipath: allow for both "p1" or "1" on partition names
 - name: find out what partition was created for each device (/dev/mapper/ case), assume ceph ends with '1'
@@ -120,9 +89,11 @@
     - item.0.get("rc", 0) != 0
     - not osd_auto_discovery
 
+# FG?
 - include: osd_fragment.yml
   when: crush_location
 
+# FG?
 - name: get osd id
   shell: |
     ls /var/lib/ceph/osd/ | sed 's/.*-//'
@@ -131,6 +102,7 @@
   always_run: true
   register: osd_id
 
+# FG?
 - name: start and add that the osd service(s) to the init sequence
   service:
     name: ceph-osd@{{ item }}

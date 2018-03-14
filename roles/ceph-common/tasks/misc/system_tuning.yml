@@ -3,6 +3,21 @@
   command: updatedb -e /var/lib/ceph
   changed_when: false
   failed_when: false
+  when:
+    - ansible_os_family == "Debian"
+    - osd_objectstore == 'filestore'
+    - ansible_os_family == "Debian"
+
+- name: disable osd directory path in updatedb.conf
+  replace:
+    dest: /etc/updatedb.conf
+    regexp: '^(PRUNEPATHS(?!.*/var/lib/ceph).*)"$'
+    replace: '\1 /var/lib/ceph"'
+  failed_when: false
+  when:
+    - ansible_os_family == "Debian"
+    - osd_objectstore == 'filestore'
+    - ansible_os_family == "Debian"
 
 - name: create tmpfiles.d directory
   file:
@@ -12,7 +27,8 @@
     group: "root"
     mode: "0755"
   register: "tmpfiles_d"
-  when: disable_transparent_hugepage
+  when:
+    - disable_transparent_hugepage
 
 - name: disable transparent hugepage
   template:
@@ -23,16 +39,17 @@
     mode: "0644"
     force: "yes"
     validate: "systemd-tmpfiles --create %s"
-  when: disable_transparent_hugepage
+  when:
+    - disable_transparent_hugepage
 
 - name: get default vm.min_free_kbytes
   command: sysctl -b vm.min_free_kbytes
   changed_when: false
   failed_when: false
-  always_run: yes
+  check_mode: no
   register: default_vm_min_free_kbytes
 
-- name: define vm.min_free_kbytes
+- name: set_fact vm_min_free_kbytes
   set_fact:
     vm_min_free_kbytes: "{{ 4194303 if ansible_memtotal_mb >= 49152 else default_vm_min_free_kbytes.stdout }}"
 

@@ -1,24 +1,46 @@
 ---
 - name: collect admin and bootstrap keys
-  command: ceph-create-keys --cluster {{ cluster }} -i {{ monitor_name }}
-  failed_when: false
+  command: ceph-create-keys --cluster {{ cluster }} -i {{ monitor_name }} -t 30
   changed_when: false
-  always_run: true
+  check_mode: no
   when:
     - cephx
+    - ceph_release_num[ceph_release] >= ceph_release_num.luminous
+
+- name: collect admin and bootstrap keys
+  command: ceph-create-keys --cluster {{ cluster }} -i {{ monitor_name }}
+  changed_when: false
+  check_mode: no
+  when:
+    - cephx
+    - ceph_release_num[ceph_release] < ceph_release_num.luminous
 
 # NOTE (leseb): wait for mon discovery and quorum resolution
 # the admin key is not instantaneously created so we have to wait a bit
+# msg: is only supported as of Ansible 2.4.
 - name: "wait for {{ cluster }}.client.admin.keyring exists"
   wait_for:
     path: /etc/ceph/{{ cluster }}.client.admin.keyring
-  when: cephx
+    timeout: 30
+    msg: "Timed out while waiting for keyring creation. Check network settings on mon nodes."
+  when:
+    - cephx
+    - (ansible_version.major == 2 and ansible_version.minor >= 4) or
+      ansible_version.major > 2
+
+- name: "wait for {{ cluster }}.client.admin.keyring exists"
+  wait_for:
+    path: /etc/ceph/{{ cluster }}.client.admin.keyring
+    timeout: 30
+  when:
+    - cephx
+    - ansible_version.major == 2 and ansible_version.minor < 4
 
 - name: test if initial mon keyring is in mon kv store
   command: ceph --cluster {{ cluster }} config-key get initial_mon_keyring
   changed_when: false
   ignore_errors: true
-  always_run: true
+  check_mode: no
   run_once: true
   failed_when: false
   register: is_initial_mon_keyring_in_kv
@@ -26,7 +48,7 @@
 - name: put initial mon keyring in mon kv store
   command: ceph --cluster {{ cluster }} config-key put initial_mon_keyring {{ monitor_keyring.stdout }}
   changed_when: false
-  always_run: true
+  check_mode: no
   run_once: true
   when:
     - is_initial_mon_keyring_in_kv.rc != 0
@@ -51,58 +73,16 @@
     - cephx
     - groups.get(mgr_group_name, []) | length > 0
     - inventory_hostname == groups[mon_group_name]|last
-    - ceph_release_num.{{ ceph_release }} > ceph_release_num.jewel
+    - ceph_release_num[ceph_release] > ceph_release_num.jewel
   with_items: "{{ groups.get(mgr_group_name, []) }}"
-
-- include: set_osd_pool_default_pg_num.yml
-
-- include: crush_rules.yml
-  when:
-    - crush_rule_config
-
-- name: test if rbd exists
-  shell: |
-    ceph --cluster {{ cluster }} osd pool ls | grep -sq rbd
-  changed_when: false
-  failed_when: false
-  register: rbd_pool_exist
-
-- include: rbd_pool.yml
-  when: rbd_pool_exist.rc == 0
-
-- include: rbd_pool_pgs.yml
-  when:
-    - rbd_pool_exist.rc == 0
-    - global_in_ceph_conf_overrides
-    - ceph_conf_overrides.global.osd_pool_default_pg_num is defined
-
-- include: rbd_pool_size.yml
-  when:
-    - rbd_pool_exist.rc == 0
-    - global_in_ceph_conf_overrides
-    - ceph_conf_overrides.global.osd_pool_default_size is defined
-
-- name: create rbd pool on luminous
-  shell: ceph --connect-timeout 5 --cluster {{ cluster }} osd pool create rbd {{ ceph_conf_overrides.global.osd_pool_default_pg_num }}
-  changed_when: false
-  failed_when: false
-  when:
-    - ceph_release_num.{{ ceph_release }} >= ceph_release_num.luminous
-    - global_in_ceph_conf_overrides
-    - ceph_conf_overrides.global.osd_pool_default_pg_num is defined
-    - rbd_pool_exist.rc != 0
-
-- include: openstack_config.yml
-  when:
-    - openstack_config
-    - "{{ inventory_hostname == groups[mon_group_name] | last }}"
 
 - name: find ceph keys
   shell: ls -1 /etc/ceph/*.keyring
   changed_when: false
   register: ceph_keys
-  always_run: true
-  when: cephx
+  check_mode: no
+  when:
+    - cephx
 
 - name: set keys permissions
   file:
@@ -112,7 +92,14 @@
     mode: "0600"
   with_items:
     - "{{ ceph_keys.get('stdout_lines') | default([]) }}"
-  when: cephx
+  when:
+    - cephx
+
+- name: set_fact bootstrap_rbd_keyring
+  set_fact:
+    bootstrap_rbd_keyring: "/var/lib/ceph/bootstrap-rbd/{{ cluster }}.keyring"
+  when:
+    - ceph_release_num[ceph_release] >= ceph_release_num.luminous
 
 - name: copy keys to the ansible server
   fetch:
@@ -124,9 +111,10 @@
     - /var/lib/ceph/bootstrap-osd/{{ cluster }}.keyring
     - /var/lib/ceph/bootstrap-rgw/{{ cluster }}.keyring
     - /var/lib/ceph/bootstrap-mds/{{ cluster }}.keyring
+    - "{{ bootstrap_rbd_keyring | default([]) }}"
   when:
     - cephx
-    - "{{ inventory_hostname == groups[mon_group_name] | last }}"
+    - inventory_hostname == groups[mon_group_name] | last
 
 - name: drop in a motd script to report status when logging in
   copy:
@@ -135,4 +123,5 @@
     owner: root
     group: root
     mode: 0755
-  when: ansible_distribution_release == 'precise'
+  when:
+    - ansible_distribution_release == 'precise'

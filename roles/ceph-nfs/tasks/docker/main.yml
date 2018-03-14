@@ -1,6 +1,0 @@
----
-# Copy Ceph configs to host
-- include: copy_configs.yml
-
-- include: start_docker_nfs.yml
-

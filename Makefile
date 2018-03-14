@@ -6,6 +6,9 @@ NAME = ceph-ansible
 # Set the RPM package NVR from "git describe".
 # Examples:
 #
+#  A "git describe" value of "v2.2.0beta1" would create an NVR
+#  "ceph-ansible-2.2.0-0.beta1.1.el7"
+#
 #  A "git describe" value of "v2.2.0rc1" would create an NVR
 #  "ceph-ansible-2.2.0-0.rc1.1.el7"
 #
@@ -24,6 +27,11 @@ RELEASE := $(shell git describe --tags --match 'v*' \
              | sed 's/-/./')
 ifeq ($(VERSION),$(RELEASE))
   RELEASE = 1
+endif
+ifneq (,$(findstring beta,$(VERSION)))
+    BETA := $(shell echo $(VERSION) | sed 's/.*beta/beta/')
+    RELEASE := 0.$(BETA).$(RELEASE)
+    VERSION := $(subst $(BETA),,$(VERSION))
 endif
 ifneq (,$(findstring rc,$(VERSION)))
     RC := $(shell echo $(VERSION) | sed 's/.*rc/rc/')
@@ -57,7 +65,11 @@ spec:
 	  > ceph-ansible.spec
 
 srpm: dist spec
-	fedpkg --dist epel7 srpm
+	rpmbuild -bs ceph-ansible.spec \
+	  --define "_topdir ." \
+	  --define "_sourcedir ." \
+	  --define "_srcrpmdir ." \
+	  --define "dist .el7"
 
 rpm: dist srpm
 	mock -r epel-7-x86_64 rebuild $(NVR).src.rpm \
