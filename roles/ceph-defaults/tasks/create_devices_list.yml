@@ -44,6 +44,6 @@
 
 - name: combine devices
   set_fact:
-    devices: "{{ devices_multipath list if (devices_multipath_list | length) }}"
+    devices: "{{ devices_multipath_list }}"
 
 - debug: var=devices
