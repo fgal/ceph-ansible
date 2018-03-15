@@ -28,6 +28,8 @@
     - not osd_auto_discovery
     - not dmcrypt
     - item != '/dev/dead'
+    - not devices_multipath_auto
+#FG#
 
 - name: activate osd(s) when device is a disk (dmcrypt)
   command: ceph-disk activate --dmcrypt "{{ item }}{%- if 'nvme' in item or 'cciss' in item or 'loop' in item %}{{ 'p' }}{%- endif %}{%- if 'mpath' in item %}{{ '-part' }}{%- endif %}{{ '1' }}"
@@ -39,6 +41,8 @@
     - not osd_auto_discovery
     - dmcrypt
     - item != '/dev/dead'
+    - not devices_multipath_auto
+#FG#
 
 # NOTE (leseb): we must do this because of
 # https://github.com/ansible/ansible/issues/4297
@@ -55,58 +59,27 @@
 
 #FG: Activate partition when device is multipath: allow for both "p1" or "1" on partition names
 - name: find out what partition was created for each device (/dev/mapper/ case), assume ceph ends with '1'
-  shell: "ls -1 {{ item.1 }}* | grep {{ item.1 }} | grep 1$ "
+  shell: "ls -1 {{ item }}* | grep {{ item }} | grep 1$ "
   register: devices_ceph_partition
-  with_together:
-    - "{{ ispartition_results.results }}"
+  with_items:
     - "{{ devices|unique }}"
   when:
-    - not item.0.get("skipped")
-    - item.0.get("rc", 0) != 0
     - not osd_auto_discovery
 
-# - debug: var=ispartition_results.results
 - debug: "msg='devices_ceph_partition is {{ devices_ceph_partition }}'"
 - debug: var=devices_ceph_partition.results
 - debug: var=crush_location
-- debug: var=item.1.stdout
-  with_together:
-    - "{{ ispartition_results.results }}"
+- debug: var=item.stdout
+  with_items:
     - "{{ devices_ceph_partition.results }}"
   when:
-    - not item.0.get("skipped")
-    - item.0.get("rc", 0) != 0
     - not osd_auto_discovery
+
 - name: activate osd(s) when device is a /dev/mapper/ partition
-  command: "ceph-disk activate {{ item.1.stdout }}"
-  with_together:
-    - "{{ ispartition_results.results }}"
+  command: "ceph-disk activate {{ item.stdout }}"
+  with_items:
     - "{{ devices_ceph_partition.results }}"
   changed_when: false
   failed_when: false
   when:
-    - not item.0.get("skipped")
-    - item.0.get("rc", 0) != 0
     - not osd_auto_discovery
-
-# FG?
-- include: osd_fragment.yml
-  when: crush_location
-
-# FG?
-- name: get osd id
-  shell: |
-    ls /var/lib/ceph/osd/ | sed 's/.*-//'
-  changed_when: false
-  failed_when: false
-  always_run: true
-  register: osd_id
-
-# FG?
-- name: start and add that the osd service(s) to the init sequence
-  service:
-    name: ceph-osd@{{ item }}
-    state: started
-    enabled: yes
-  with_items: "{{ (osd_id|default({})).stdout_lines|default([]) }}"
-  changed_when: false

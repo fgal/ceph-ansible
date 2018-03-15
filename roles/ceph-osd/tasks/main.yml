@@ -39,10 +39,6 @@
 - name: include check_gpt.yml
   include: check_gpt.yml
 
-- include: create_devices_list.yml
-  # FG: Always execute: map devices_static to devices, or create devices from devices_multipath_regex when devices_multipath_auto
-  static: False
-
 - name: include scenarios/collocated.yml
   include: scenarios/collocated.yml
   when:

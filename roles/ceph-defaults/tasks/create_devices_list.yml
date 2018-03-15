@@ -20,10 +20,8 @@
   when: "has_multipath.rc == 0"
 
 - debug: "msg='has_multipath is {{ has_multipath.rc }}'"
-- debug: "msg='devices_multipath_skip is {{ devices_multipath_skip.stdout_lines }}'"
-- debug: "msg='devices_multipaths is {{ devices_multipaths.stdout_lines }}'"
-- debug: "msg='raw_multi_journal   is {{ raw_multi_journal }}'"
-- debug: "msg='raw_journal_devices is {{ raw_journal_devices }}'"
+- debug: "msg='devices_multipath_skip is {{ devices_multipath_skip }}'"
+- debug: "msg='devices_multipaths is {{ devices_multipaths }}'"
 
 - name:	check multipaths matching regex
   shell: echo /dev/mapper/{{ item }}
@@ -33,16 +31,19 @@
   failed_when: false
   register: devices_multipath_results
   when:
-   - devices_multipath_auto
+   - "has_multipath.rc == 0"
    - item.find('{{ devices_multipath_regex }}') == 0
    - not ((raw_journal_devices | join(" ")) | search('{{ item }}'))
 
 - name: get list of selected multipaths
   set_fact: devices_multipath_list="{{ devices_multipath_results.results | map(attribute='stdout') | select("defined") | list }}"
+  when:
+   - "has_multipath.rc == 0"
+
 - debug: var=devices_multipath_list
 
 - name: combine devices
   set_fact:
-    devices: "{{ devices_static if not devices_multipath_auto else devices_multipath_list }}"
+    devices: "{{ devices_multipath list if (devices_multipath_list | length) }}"
 
 - debug: var=devices

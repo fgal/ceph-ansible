@@ -143,6 +143,12 @@
     - rbd_client_directory_mode is not defined
       or not rbd_client_directory_mode
 
+- include: create_devices_list.yml
+  # FG: Always execute: possibly create devices from devices_multipath_regex when devices_multipath_auto
+  static: False
+  when:
+   - devices_multipath_auto is defined and devices_multipath_auto
+
 - name: resolve device link(s)
   command: readlink -f {{ item }}
   changed_when: false
@@ -161,6 +167,8 @@
     - inventory_hostname in groups.get(osd_group_name, [])
     - not osd_auto_discovery|default(False)
     - osd_scenario|default('dummy') != 'lvm'
+    - not devices_multipath_auto
+#FG: check it works also for a single multipath passed in devices array
 
 - name: set_fact build final devices list
   set_fact:
