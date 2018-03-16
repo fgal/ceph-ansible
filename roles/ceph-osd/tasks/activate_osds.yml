@@ -2,18 +2,6 @@
 # NOTE (leseb) : this task is for disk devices only because of the explicit use of the first
 # partition.
 
-- name: automatically activate osd disk(s) without partitions
-  command: ceph-disk activate "/dev/{{ item.key | regex_replace('^(\/dev\/cciss\/c[0-9]{1}d[0-9]{1})$', '\\1p') }}1"
-  ignore_errors: true
-  with_dict: "{{ ansible_devices }}"
-  when:
-    - ansible_devices is defined
-    - item.value.removable == "0"
-    - item.value.partitions|count == 0
-    - item.value.holders|count == 0
-    - journal_collocation
-    - osd_auto_discovery
-
 - debug: "msg='journal_collocation is {{ journal_collocation }}'"
 - debug: "msg='osd_auto_discovery  is {{ osd_auto_discovery }}'"
 - debug: "msg='raw_multi_journal   is {{ raw_multi_journal }}'"
