@@ -33,7 +33,7 @@
   when:
    - "has_multipath.rc == 0"
    - item.find('{{ devices_multipath_regex }}') == 0
-   - not ((raw_journal_devices | join(" ")) | search('{{ item }}'))
+   - dedicated_devices is not defined or (dedicated_devices is defined and not ((dedicated_devices | join(" ")) | search('{{ item }}')))
 
 - name: get list of selected multipaths
   set_fact: devices_multipath_list="{{ devices_multipath_results.results | map(attribute='stdout') | select("defined") | list }}"

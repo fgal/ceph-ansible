@@ -39,7 +39,7 @@ fsid = {{ fsid }}
 log file = /dev/null
 mon cluster log file = /dev/null
 {% endif %}
-{% if ceph_release not in ['jewel', 'kraken', 'luminous', 'mimic'] %}
+{% if ceph_release in ['jewel', 'kraken', 'luminous', 'mimic'] %}
 {% set mon_host_v1_suffix = ":6789" %}
 {% set mon_host_v2_suffix = ":3300" %}
 {% endif %}

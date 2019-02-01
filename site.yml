@@ -8,47 +8,27 @@
   - mdss
   - rgws
   - nfss
-  - restapis
   - rbdmirrors
   - clients
   - mgrs
-  - iscsi-gws
+  - iscsigws
+  - iscsi-gws # for backward compatibility only!
 
   gather_facts: false
+  any_errors_fatal: true
+  become: true
 
   tags:
     - always
 
   vars:
-    delegate_facts_host: False
-#    delegate_facts_host: True
+    delegate_facts_host: True
 
-  tasks:
+  pre_tasks:
     # If we can't get python2 installed before any module is used we will fail
     # so just try what we can to get it installed
-    - name: check for python2
-      stat:
-        path: /usr/bin/python
-      ignore_errors: yes
-      register: systempython2
 
-    - name: install python2 for debian based systems
-      raw: sudo apt-get -y install python-simplejson
-      ignore_errors: yes
-      when:
-        - systempython2.stat.exists is undefined or systempython2.stat.exists == false
-
-    - name: install python2 for fedora
-      raw: sudo dnf -y install python creates=/usr/bin/python
-      ignore_errors: yes
-      when:
-        - systempython2.stat.exists is undefined or systempython2.stat.exists == false
-
-    - name: install python2 for opensuse
-      raw: sudo zypper -n install python-base creates=/usr/bin/python2.7
-      ignore_errors: yes
-      when:
-        - systempython2.stat.exists is undefined or systempython2.stat.exists == false
+    - import_tasks: raw_install_python.yml
 
     - name: gather facts
       setup:
@@ -60,6 +40,7 @@
       delegate_to: "{{ item }}"
       delegate_facts: True
       with_items: "{{ groups['all'] }}"
+      run_once: true
       when:
         - delegate_facts_host | bool
 
@@ -69,9 +50,20 @@
         - ansible_distribution == 'Fedora'
         - ansible_distribution_major_version|int >= 23
 
+  tasks:
+    - import_role:
+        name: ceph-defaults
+    - import_role:
+        name: ceph-facts
+    - import_role:
+        name: ceph-validate
+    - import_role:
+        name: ceph-infra
+
 - hosts: mons
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph monitor install 'In Progress'
       run_once: true
@@ -80,11 +72,26 @@
           installer_phase_ceph_mon:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-mon
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-mon
+    - import_role:
+        name: ceph-mgr
+
   post_tasks:
     - name: set ceph monitor install 'Complete'
       run_once: true
@@ -97,6 +104,7 @@
 - hosts: mgrs
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph manager install 'In Progress'
       run_once: true
@@ -105,11 +113,24 @@
           installer_phase_ceph_mgr:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'], when: "ceph_release_num[ceph_release] >= ceph_release_num.luminous" }
-    - { role: ceph-mgr, when: "ceph_release_num[ceph_release] >= ceph_release_num.luminous" }
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-mgr
+
   post_tasks:
     - name: set ceph manager install 'Complete'
       run_once: true
@@ -122,6 +143,7 @@
 - hosts: agents
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph agent install 'In Progress'
       run_once: true
@@ -130,11 +152,24 @@
           installer_phase_ceph_agent:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-agent
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-agent
+
   post_tasks:
     - name: set ceph agent install 'Complete'
       run_once: true
@@ -147,6 +182,7 @@
 - hosts: osds
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph osd install 'In Progress'
       run_once: true
@@ -155,11 +191,24 @@
           installer_phase_ceph_osd:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-osd
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-osd
+
   post_tasks:
     - name: set ceph osd install 'Complete'
       run_once: true
@@ -172,6 +221,7 @@
 - hosts: mdss
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph mds install 'In Progress'
       run_once: true
@@ -180,11 +230,24 @@
           installer_phase_ceph_mds:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-mds
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-mds
+
   post_tasks:
     - name: set ceph mds install 'Complete'
       run_once: true
@@ -197,6 +260,7 @@
 - hosts: rgws
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph rgw install 'In Progress'
       run_once: true
@@ -205,11 +269,24 @@
           installer_phase_ceph_rgw:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-rgw
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-rgw
+
   post_tasks:
     - name: set ceph rgw install 'Complete'
       run_once: true
@@ -222,6 +299,7 @@
 - hosts: nfss
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph nfs install 'In Progress'
       run_once: true
@@ -230,11 +308,24 @@
           installer_phase_ceph_nfs:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'], when: "ceph_release_num[ceph_release] >= ceph_release_num.luminous" }
-    - { role: ceph-nfs, when: "ceph_release_num[ceph_release] >= ceph_release_num.luminous" }
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-nfs
+
   post_tasks:
     - name: set ceph nfs install 'Complete'
       run_once: true
@@ -244,34 +335,10 @@
             status: "Complete"
             end: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
 
-- hosts: restapis
-  gather_facts: false
-  become: True
-  pre_tasks:
-    - name: set ceph rest api install 'In Progress'
-      run_once: true
-      set_stats:
-        data:
-          installer_phase_ceph_restapi:
-            status: "In Progress"
-            start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-restapi
-  post_tasks:
-    - name: set ceph rest api install 'Complete'
-      run_once: true
-      set_stats:
-        data:
-          installer_phase_ceph_restapi:
-            status: "Complete"
-            end: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-
 - hosts: rbdmirrors
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph rbd mirror install 'In Progress'
       run_once: true
@@ -280,11 +347,24 @@
           installer_phase_ceph_rbdmirror:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-rbd-mirror
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-rbd-mirror
+
   post_tasks:
     - name: set ceph rbd mirror install 'Complete'
       run_once: true
@@ -297,6 +377,7 @@
 - hosts: clients
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph client install 'In Progress'
       run_once: true
@@ -305,11 +386,24 @@
           installer_phase_ceph_client:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'] }
-    - ceph-client
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-client
+
   post_tasks:
     - name: set ceph client install 'Complete'
       run_once: true
@@ -319,9 +413,12 @@
             status: "Complete"
             end: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
 
-- hosts: iscsi-gws
+- hosts:
+    - iscsigws
+    - iscsi-gws # for backward compatibility only!
   gather_facts: false
   become: True
+  any_errors_fatal: true
   pre_tasks:
     - name: set ceph iscsi gateway install 'In Progress'
       run_once: true
@@ -330,11 +427,24 @@
           installer_phase_ceph_iscsi_gw:
             status: "In Progress"
             start: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
-  roles:
-    - { role: ceph-defaults, tags: ['ceph_update_config'] }
-    - ceph-common
-    - { role: ceph-config, tags: ['ceph_update_config'], when: "ceph_release_num[ceph_release] >= ceph_release_num.luminous" }
-    - { role: ceph-iscsi-gw, when: "ceph_release_num[ceph_release] >= ceph_release_num.luminous" }
+
+  tasks:
+    - import_role:
+        name: ceph-defaults
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-facts
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-handler
+    - import_role:
+        name: ceph-common
+    - import_role:
+        name: ceph-config
+      tags: ['ceph_update_config']
+    - import_role:
+        name: ceph-iscsi-gw
+
   post_tasks:
     - name: set ceph iscsi gw install 'Complete'
       run_once: true
@@ -343,3 +453,24 @@
           installer_phase_ceph_iscsi_gw:
             status: "Complete"
             end: "{{ lookup('pipe', 'date +%Y%m%d%H%M%SZ') }}"
+
+- hosts: mons
+  gather_facts: false
+  become: True
+  any_errors_fatal: true
+  tasks:
+    - import_role:
+        name: ceph-defaults
+    - name: get ceph status from the first monitor
+      command: ceph --cluster {{ cluster }} -s
+      register: ceph_status
+      changed_when: false
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      run_once: true
+
+    - name: "show ceph status for cluster {{ cluster }}"
+      debug:
+        msg: "{{ ceph_status.stdout_lines }}"
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      run_once: true
+      when: not ceph_status.failed
