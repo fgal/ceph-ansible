@@ -1,21 +1,17 @@
 ---
-- name: disable osd directory parsing by updatedb
-  command: updatedb -e /var/lib/ceph
-  changed_when: false
-  failed_when: false
+- name: debian based systems tasks
+  block:
+    - name: disable osd directory parsing by updatedb
+      command: updatedb -e /var/lib/ceph
+      changed_when: false
+      failed_when: false
+    - name: disable osd directory path in updatedb.conf
+      replace:
+        dest: /etc/updatedb.conf
+        regexp: '^(PRUNEPATHS(?!.*/var/lib/ceph).*)"$'
+        replace: '\1 /var/lib/ceph"'
+      failed_when: false
   when:
-    - ansible_os_family == "Debian"
-    - osd_objectstore == 'filestore'
-    - ansible_os_family == "Debian"
-
-- name: disable osd directory path in updatedb.conf
-  replace:
-    dest: /etc/updatedb.conf
-    regexp: '^(PRUNEPATHS(?!.*/var/lib/ceph).*)"$'
-    replace: '\1 /var/lib/ceph"'
-  failed_when: false
-  when:
-    - ansible_os_family == "Debian"
     - osd_objectstore == 'filestore'
     - ansible_os_family == "Debian"
 
@@ -61,13 +57,7 @@
     sysctl_file: /etc/sysctl.d/ceph-tuning.conf
     sysctl_set: yes
     ignoreerrors: yes
-  with_items: "{{ os_tuning_params }}"
-
-- name: increase aio-max-nr for bluestore
-  sysctl:
-    name: fs.aio-max-nr
-    value: 1048576
-    sysctl_file: /etc/sysctl.d/ceph-tuning.conf
-    sysctl_set: yes
-  when:
-    - osd_objectstore == 'bluestore'
+  with_items:
+    - { name: "fs.aio-max-nr", value: "1048576", enable: (osd_objectstore == 'bluestore') }
+    - "{{ os_tuning_params }}"
+  when: item.enable | default(true)
