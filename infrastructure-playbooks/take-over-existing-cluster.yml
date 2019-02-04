@@ -13,11 +13,9 @@
 
 - hosts: mons
   become: True
-  tasks:
-    - import_role:
-        name: ceph-defaults
-    - import_role:
-        name: ceph-fetch-keys
+  roles:
+    - ceph-defaults
+    - ceph-fetch-keys
 
 - hosts:
   - mons
@@ -26,19 +24,20 @@
   - mdss
   - rgws
   - nfss
+  - restapis
   - rbdmirrors
   - clients
   - mgrs
   - iscsi-gw
   become: true
-  tasks:
-    - import_role:
-        name: ceph-defaults
+
+  roles:
+    - ceph-defaults
 
   post_tasks:
     - name: get the name of the existing ceph cluster
       shell: |
-          basename $(grep --exclude '*.bak' -R fsid /etc/ceph/ | egrep -o '^[^.]*' | head -n 1)
+        basename $(grep --exclude '*.bak' -R fsid /etc/ceph/ | egrep -o '^[^.]*' | head -n 1)
       changed_when: false
       register: cluster_name
 

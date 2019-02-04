@@ -1,7 +1,7 @@
 ---
 - name: set_fact docker_exec_cmd mds
   set_fact:
-    docker_exec_cmd: "{{ container_binary }} exec ceph-mds-{{ ansible_hostname }}"
+    docker_exec_cmd: "docker exec ceph-mds-{{ ansible_hostname }}"
 
 - name: set_fact admin_keyring
   set_fact:
@@ -22,14 +22,14 @@
     - copy_admin_key
 
 - name: stat for ceph config and keys
-  stat:
+  local_action:
+    module: stat
     path: "{{ fetch_directory }}/{{ fsid }}/{{ item }}"
-  delegate_to: localhost
   with_items: "{{ ceph_config_keys }}"
   changed_when: false
   become: false
   failed_when: false
-  check_mode: no
+  always_run: true
   register: statconfig
 
 - name: try to fetch ceph config and keys
@@ -43,7 +43,18 @@
   with_together:
     - "{{ ceph_config_keys }}"
     - "{{ statconfig.results }}"
-  when: item.1.stat.exists
+  when: item.1.stat.exists == true
+
+- name: set selinux permissions
+  shell: |
+    chcon -Rt svirt_sandbox_file_t {{ item }}
+  with_items:
+    - "{{ ceph_conf_key_directory }}"
+    - /var/lib/ceph
+  changed_when: false
+  when:
+    - ansible_os_family == 'RedHat'
+    - sestatus.stdout != 'Disabled'
 
 - name: generate systemd unit file
   become: true
@@ -65,7 +76,6 @@
 
 - name: wait for mds socket to exist
   command: "{{ docker_exec_cmd }} sh -c 'stat /var/run/ceph/{{ cluster }}-mds.{{ ansible_hostname }}.asok || stat /var/run/ceph/{{ cluster }}-mds.{{ ansible_fqdn }}.asok'"
-  changed_when: false
   register: multi_mds_socket
   retries: 5
   delay: 15

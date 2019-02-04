@@ -5,7 +5,7 @@
 - debug: "msg='osd_auto_discovery  is {{ osd_auto_discovery }}'"
 
 - name: activate osd(s) when device is a disk
-  command: ceph-disk activate "{{ item }}{%- if 'nvme' in item or 'cciss' in item or 'loop' in item %}{{ 'p' }}{%- endif %}{%- if 'mpath' in item %}{{ '-part' }}{%- endif %}{{ '1' }}"
+  command: ceph-disk activate "{{ item }}{%- if 'nvme' in item or 'cciss' in item or 'loop' in item %}{{ 'p' }}{%- endif %}{{ '1' }}"
   with_items:
     - "{{ devices|unique }}"
   changed_when: false
@@ -18,7 +18,7 @@
 #FG#
 
 - name: activate osd(s) when device is a disk (dmcrypt)
-  command: ceph-disk activate --dmcrypt "{{ item }}{%- if 'nvme' in item or 'cciss' in item or 'loop' in item %}{{ 'p' }}{%- endif %}{%- if 'mpath' in item %}{{ '-part' }}{%- endif %}{{ '1' }}"
+  command: ceph-disk activate --dmcrypt "{{ item }}{%- if 'nvme' in item or 'cciss' in item or 'loop' in item %}{{ 'p' }}{%- endif %}{{ '1' }}"
   with_items:
     - "{{ devices|unique }}"
   changed_when: false

@@ -10,7 +10,7 @@
   set_fact:
     ceph_config_keys:
       - /var/lib/ceph/bootstrap-rgw/{{ cluster }}.keyring
-
+      
 - name: merge ceph_config_keys and admin_keyring
   set_fact:
     ceph_config_keys: "{{ ceph_config_keys + admin_keyring }}"
@@ -18,14 +18,14 @@
     - copy_admin_key
 
 - name: stat for config and keys
-  stat:
+  local_action:
+    module: stat
     path: "{{ fetch_directory }}/{{ fsid }}/{{ item }}"
-  delegate_to: localhost
   with_items: "{{ ceph_config_keys }}"
   changed_when: false
   become: false
   failed_when: false
-  check_mode: no
+  always_run: true
   register: statconfig
 
 - name: try to fetch config and keys
@@ -40,12 +40,23 @@
     - "{{ ceph_config_keys }}"
     - "{{ statconfig.results }}"
   when:
-    - item.1.stat.exists
+    - item.1.stat.exists == true
+
+- name: set selinux permissions
+  shell: |
+    chcon -Rt svirt_sandbox_file_t {{ item }}
+  with_items:
+    - "{{ ceph_conf_key_directory }}"
+    - /var/lib/ceph
+  changed_when: false
+  when:
+    - ansible_os_family == 'RedHat'
+    - sestatus.stdout != 'Disabled'
 
 - name: create dbus service file
   become: true
-  copy:
-    src: "org.ganesha.nfsd.conf"
+  template:
+    src: "{{ role_path }}/templates/org.ganesha.nfsd.conf"
     dest: /etc/dbus-1/system.d/org.ganesha.nfsd.conf
     owner: "root"
     group: "root"

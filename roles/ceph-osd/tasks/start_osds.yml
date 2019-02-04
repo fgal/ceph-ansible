@@ -48,28 +48,12 @@
     {{ docker_exec_start_osd }} lvm list --format json
   changed_when: false
   failed_when: false
-  register: ceph_osd_ids
-
-- name: generate systemd unit file
-  become: true
-  template:
-    src: "{{ role_path }}/templates/ceph-osd.service.j2"
-    dest: /etc/systemd/system/ceph-osd@.service
-    owner: "root"
-    group: "root"
-    mode: "0644"
-  notify:
-    - restart ceph osds
+  always_run: true
+  register: osd_id
+  until: osd_id.stdout_lines|length == devices|unique|length
+  retries: 10
   when:
-    - containerized_deployment
-
-- name: systemd start osd
-  systemd:
-    name: ceph-osd@{{ item | regex_replace('/dev/', '') if osd_scenario != 'lvm' and containerized_deployment else item }}
-    state: started
-    enabled: yes
-    daemon_reload: yes
-  with_items: "{{ devices if osd_scenario != 'lvm' and containerized_deployment else ((ceph_osd_ids.stdout | from_json).keys() | list) if osd_scenario == 'lvm' and not containerized_deployment else osd_ids_non_container.stdout_lines }}"
+    - osd_scenario != 'lvm'
 
 - name: ensure systemd service override directory exists
   file:
