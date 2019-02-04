@@ -1,15 +1,11 @@
 ---
 - name: collect all the pools
-  command: >
-    {{ docker_exec_cmd }} rados --cluster {{ cluster }} lspools
-  changed_when: false
+  command: rados --cluster {{ cluster }} lspools
   register: ceph_pools
-  check_mode: no
+  always_run: true
 
 - name: secure the cluster
-  command: >
-    {{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd pool set {{ item[0] }} {{ item[1] }} true
-  changed_when: false
+  command: ceph --cluster {{ cluster }} osd pool set {{ item[0] }} {{ item[1] }} true
   with_nested:
     - "{{ ceph_pools.stdout_lines|default([]) }}"
     - "{{ secure_cluster_flags }}"

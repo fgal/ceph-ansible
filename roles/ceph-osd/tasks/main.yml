@@ -1,34 +1,40 @@
 ---
-- name: include_tasks system_tuning.yml
-  include_tasks: system_tuning.yml
+- name: set_fact docker_exec_cmd
+  set_fact:
+    docker_exec_cmd: "docker exec ceph-osd-{{ ansible_hostname }}"
+  when:
+    - containerized_deployment
 
-- name: install dependencies
-  package:
-    name: parted
-    state: present
-  register: result
-  until: result is succeeded
+- name: include check_mandatory_vars.yml
+  include: check_mandatory_vars.yml
+
+- name: include pre_requisite.yml
+  include: pre_requisite.yml
   when:
     - not containerized_deployment
-    - ansible_os_family != 'ClearLinux'
+  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
+  static: False
 
-- name: include_tasks common.yml
-  include_tasks: common.yml
+- name: include ceph_disk_cli_options_facts.yml
+  include: ceph_disk_cli_options_facts.yml
 
 - name: include build_devices.yml
   include: build_devices.yml
 
-- name: read information about the devices
-  parted:
-    device: "{{ item }}"
-    unit: MiB
+- name: check if a partition named 'ceph' exists
+  shell: "parted --script {{ item }} print | egrep -sq '^ 1.*ceph'"
+  with_items:
+    - "{{ devices }}"
+  changed_when: false
+  failed_when: false
+  always_run: true
   register: parted_results
-  with_items: "{{ devices }}"
 
-- name: include check_gpt.yml
-  include_tasks: check_gpt.yml
+- name: include copy_configs.yml
+  include: copy_configs.yml
   when:
-    - osd_scenario != 'lvm'
+    - containerized_deployment
+    - not containerized_deployment_with_kv
 
 - name: include check_gpt.yml
   include: check_gpt.yml
@@ -39,48 +45,44 @@
   include: scenarios/collocated.yml
   when:
     - osd_scenario == 'collocated'
+  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
+  static: False
 
-- name: include_tasks scenarios/non-collocated.yml
-  include_tasks: scenarios/non-collocated.yml
+- name: include scenarios/non-collocated.yml
+  include: scenarios/non-collocated.yml
   when:
     - not osd_auto_discovery
     - osd_scenario == 'non-collocated'
+  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
+  static: False
 
-- name: include_tasks scenarios/lvm.yml
-  include_tasks: scenarios/lvm.yml
+- name: include scenarios/lvm.yml
+  include: scenarios/lvm.yml
   when:
     - osd_scenario == 'lvm'
-    - lvm_volumes|length > 0
+    - not containerized_deployment
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
   static: False
 
-- name: include_tasks scenarios/lvm-batch.yml
-  include_tasks: scenarios/lvm-batch.yml
+- name: include activate_osds.yml
+  include: activate_osds.yml
   when:
     - not containerized_deployment
     - osd_scenario != 'lvm'
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
   static: False
 
-- name: include_tasks activate_osds.yml
-  include_tasks: activate_osds.yml
+- name: include start_osds.yml
+  include: start_osds.yml
   when:
     - not containerized_deployment
     - osd_scenario != 'lvm'
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
   static: False
 
-- name: set_fact keys - override keys_tmp with keys
-  set_fact:
-    openstack_keys: "{{ openstack_keys_tmp }}"
+- name: include docker/main.yml
+  include: docker/main.yml
   when:
-    - not add_osd|default(False)
-    - openstack_keys_tmp is defined
-
-# Create the pools listed in openstack_pools
-- name: include openstack_config.yml
-  include_tasks: openstack_config.yml
-  when:
-    - not add_osd|default(False)
-    - openstack_config
-    - inventory_hostname == groups[osd_group_name] | last
+    - containerized_deployment
+  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
+  static: False

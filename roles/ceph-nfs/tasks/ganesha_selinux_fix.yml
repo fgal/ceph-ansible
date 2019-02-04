@@ -4,14 +4,12 @@
   register: selinuxstatus
   changed_when: false
   failed_when: false
-  check_mode: no
+  always_run: true
 
 - name: install policycoreutils-python to get semanage
   package:
     name: policycoreutils-python
     state: present
-  register: result
-  until: result is succeeded
   when:
     - selinuxstatus.stdout != 'Disabled'
 

@@ -9,4 +9,5 @@
   apt_repository:
     repo: "{{ ceph_dev_deb_repo.content }}"
     state: present
-    update_cache: yes
+  changed_when: false
+

@@ -6,9 +6,6 @@ NAME = ceph-ansible
 # Set the RPM package NVR from "git describe".
 # Examples:
 #
-#  A "git describe" value of "v2.2.0beta1" would create an NVR
-#  "ceph-ansible-2.2.0-0.beta1.1.el7"
-#
 #  A "git describe" value of "v2.2.0rc1" would create an NVR
 #  "ceph-ansible-2.2.0-0.rc1.1.el7"
 #
@@ -29,23 +26,11 @@ RELEASE := $(shell git describe --tags --match 'v*' \
 ifeq ($(VERSION),$(RELEASE))
   RELEASE = 1
 endif
-ifneq (,$(findstring beta,$(VERSION)))
-    BETA := $(shell echo $(VERSION) | sed 's/.*beta/beta/')
-    RELEASE := 0.$(BETA).$(RELEASE)
-    VERSION := $(subst $(BETA),,$(VERSION))
-endif
 ifneq (,$(findstring rc,$(VERSION)))
     RC := $(shell echo $(VERSION) | sed 's/.*rc/rc/')
     RELEASE := 0.$(RC).$(RELEASE)
     VERSION := $(subst $(RC),,$(VERSION))
 endif
-
-ifneq (,$(shell echo $(VERSION) | grep [a-zA-Z]))
-    # If we still have alpha characters in our Git tag string, we don't know
-    # how to translate that into a sane RPM version/release. Bail out.
-    $(error cannot translate Git tag version $(VERSION) to an RPM NVR)
-endif
-
 NVR := $(NAME)-$(VERSION)-$(RELEASE).el7
 
 all: srpm

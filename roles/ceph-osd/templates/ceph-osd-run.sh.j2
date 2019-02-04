@@ -3,10 +3,8 @@
 
 DOCKER_ENV=""
 
-{% if osd_scenario != 'lvm' -%}
-{% if disk_list.get('rc') == 0 -%}
 #############
-# VARIABLES #
+# FUNCTIONS #
 #############
 {% if disk_list.get('rc') == 0 -%}
 function expose_partitions () {
@@ -50,25 +48,14 @@ function expose_partitions {
 }
 {% endif -%}
 
-{% endif -%}
-
 expose_partitions "$1"
-
-# discover osd_objectstore for ceph-disk based osds
-if [[ $DOCKER_ENV =~ "BLUESTORE" ]]; then
-  DOCKER_ENV="$DOCKER_ENV -e OSD_BLUESTORE=1"
-elif [[ $DOCKER_ENV =~ "JOURNAL" ]]; then
-  DOCKER_ENV="$DOCKER_ENV -e OSD_FILESTORE=1"
-fi
-
-{% endif -%}
 
 
 ########
 # MAIN #
 ########
 
-/usr/bin/{{ container_binary }} run \
+/usr/bin/docker run \
   --rm \
   --net=host \
   --privileged=true \
@@ -78,12 +65,6 @@ fi
   --cpus={{ ceph_osd_docker_cpu_limit }} \
   {% else -%}
   --cpu-quota={{ ceph_osd_docker_cpu_limit * 100000 }} \
-  {% endif -%}
-  {% if ceph_osd_docker_cpuset_cpus is defined -%}
-  --cpuset-cpus='{{ ceph_osd_docker_cpuset_cpus }}' \
-  {% endif -%}
-  {% if ceph_osd_docker_cpuset_mems is defined -%}
-  --cpuset-mems='{{ ceph_osd_docker_cpuset_mems }}' \
   {% endif -%}
   -v /dev:/dev \
   -v /etc/localtime:/etc/localtime:ro \
@@ -105,8 +86,14 @@ fi
   {% if osd_objectstore == 'filestore' and dmcrypt -%}
   -e OSD_FILESTORE=1 \
   -e OSD_DMCRYPT=1 \
-  {% else -%}
+  {% endif -%}
+  {% if osd_objectstore == 'bluestore' and not dmcrypt -%}
+  -e OSD_BLUESTORE=1 \
   -e OSD_DMCRYPT=0 \
+  {% endif -%}
+  {% if osd_objectstore == 'bluestore' and dmcrypt -%}
+  -e OSD_BLUESTORE=1 \
+  -e OSD_DMCRYPT=1 \
   {% endif -%}
   -e CLUSTER={{ cluster }} \
   -e OSD_DEVICE=/dev/${1} \
@@ -114,8 +101,6 @@ fi
   -e TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES={{ ceph_tcmalloc_max_total_thread_cache }} \
   {% endif -%}
   -e CEPH_DAEMON=OSD_CEPH_DISK_ACTIVATE \
-  -e OSD_DEVICE=/dev/"${1}" \
-  --name=ceph-osd-{{ ansible_hostname }}-"${1}" \
-  {% endif -%}
   {{ ceph_osd_docker_extra_env }} \
+  --name=ceph-osd-{{ ansible_hostname }}-${1} \
   {{ ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }}

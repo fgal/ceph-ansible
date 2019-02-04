@@ -5,9 +5,8 @@
     insertafter: EOF
     create: yes
     line: "CLUSTER={{ cluster }}"
-    regexp: "^CLUSTER="
   when:
-    - ansible_os_family in ["RedHat", "Suse"]
+    - ansible_os_family == "RedHat"
 
 # NOTE(leseb): we are performing the following check
 # to ensure any Jewel installation will not fail.
@@ -19,36 +18,32 @@
 # - Jewel from latest Canonical 16.04 distro
 # - All previous versions from Canonical
 # - Infernalis from ceph.com
-- name: debian based systems - configure cluster name
-  block:
-    - name: check /etc/default/ceph exist
-      stat:
-        path: /etc/default/ceph
-      register: etc_default_ceph
-      check_mode: no
-
-    - name: configure cluster name
-      block:
-        - name: when /etc/default/ceph is not dir
-          lineinfile:
-            dest: /etc/default/ceph
-            insertafter: EOF
-            create: yes
-            regexp: "^CLUSTER="
-            line: "CLUSTER={{ cluster }}"
-          when:
-            - not etc_default_ceph.stat.isdir
-
-        - name: when /etc/default/ceph is dir
-          lineinfile:
-            dest: /etc/default/ceph/ceph
-            insertafter: EOF
-            create: yes
-            regexp: "^CLUSTER="
-            line: "CLUSTER={{ cluster }}"
-          when:
-            - etc_default_ceph.stat.isdir
-      when:
-        - etc_default_ceph.stat.exists
+- name: check /etc/default/ceph exist
+  stat:
+    path: /etc/default/ceph
+  register: etc_default_ceph
+  always_run: true
   when:
     - ansible_os_family == "Debian"
+
+- name: configure cluster name
+  lineinfile:
+    dest: /etc/default/ceph
+    insertafter: EOF
+    create: yes
+    line: "CLUSTER={{ cluster }}"
+  when:
+    - ansible_os_family == "Debian"
+    - etc_default_ceph.stat.exists
+    - not etc_default_ceph.stat.isdir
+
+- name: configure cluster name
+  lineinfile:
+    dest: /etc/default/ceph/ceph
+    insertafter: EOF
+    create: yes
+    line: "CLUSTER={{ cluster }}"
+  when:
+    - ansible_os_family == "Debian"
+    - etc_default_ceph.stat.exists
+    - etc_default_ceph.stat.isdir

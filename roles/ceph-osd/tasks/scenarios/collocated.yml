@@ -8,8 +8,8 @@
     --pid=host \
     --privileged=true \
     --name=ceph-osd-prepare-{{ ansible_hostname }}-{{ item.1 | regex_replace('/dev/', '') }} \
-    -v /etc/ceph:/etc/ceph:z \
-    -v /var/lib/ceph/:/var/lib/ceph/:z \
+    -v /etc/ceph:/etc/ceph \
+    -v /var/lib/ceph/:/var/lib/ceph/ \
     -v /dev:/dev \
     -v /etc/localtime:/etc/localtime:ro \
     -e DEBUG=verbose \
@@ -25,7 +25,8 @@
   when:
     - not osd_auto_discovery
     - containerized_deployment
-    - item.0.partitions|length == 0
+    - not item.0.get("skipped")
+    - item.0.get("rc", 0) != 0
 
 - name: automatic prepare ceph containerized osd disk collocated
   shell: |
@@ -57,4 +58,5 @@
     - "{{ devices }}"
   when:
     - not containerized_deployment
-    - item.0.partitions|length == 0
+    - not item.0.get("skipped")
+    - item.0.get("rc", 0) != 0

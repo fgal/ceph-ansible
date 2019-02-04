@@ -46,7 +46,7 @@
         path: "/etc/ceph/{{ cluster_name.stdout }}.conf"
       register: ceph_conf_stat
 
-      # Creates a backup of original ceph conf file in 'cluster_name-YYYYMMDDTHHMMSS.conf.bak' format
+    # Creates a backup of original ceph conf file in 'cluster_name-YYYYMMDDTHHMMSS.conf.bak' format
     - name: "make a backup of original {{ cluster_name.stdout }}.conf"
       copy:
         src: "/etc/ceph/{{ cluster_name.stdout }}.conf"
@@ -66,3 +66,4 @@
         mode: "{{ ceph_conf_stat.stat.mode }}"
         config_overrides: "{{ ceph_conf_overrides }}"
         config_type: ini
+
