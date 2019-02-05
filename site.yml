@@ -15,13 +15,13 @@
   - iscsi-gws # for backward compatibility only!
   - mgrs
 
-  gather_facts: false
+  gather_facts: true
 
   tags:
     - always
 
   vars:
-    delegate_facts_host: False
+    delegate_facts_host: True
 
   tasks:
     # If we can't get python2 installed before any module is used we will fail
