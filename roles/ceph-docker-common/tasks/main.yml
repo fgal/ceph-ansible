@@ -5,16 +5,6 @@
 - name: include check_mandatory_vars.yml
   include: check_mandatory_vars.yml
 
-- name: check if it is atomic host
-  stat:
-    path: /run/ostree-booted
-  register: stat_ostree
-  always_run: true
-
-- name: set_fact is_atomic
-  set_fact:
-    is_atomic: '{{ stat_ostree.stat.exists }}'
-
 - name: include pre_requisites/prerequisites.yml
   include: pre_requisites/prerequisites.yml
   when:
@@ -54,7 +44,7 @@
   register: ceph_health
   changed_when: false
   failed_when: false
-  always_run: true
+  check_mode: no
 
 - name: include checks.yml
   include: checks.yml
@@ -73,11 +63,11 @@
     - ansible_os_family == 'RedHat'
     - ntp_service_enabled
 
-- name: include misc/ntp_redhat.yml
-  include: misc/ntp_redhat.yml
+- name: include misc/ntp_rpm.yml
+  include: misc/ntp_rpm.yml
   when:
     - not is_atomic
-    - ansible_os_family == 'RedHat'
+    - ansible_os_family in ['RedHat', 'Suse']
     - ntp_service_enabled
 
 - name: include misc/ntp_debian.yml
@@ -88,11 +78,13 @@
 
 - name: include fetch_image.yml
   include: fetch_image.yml
+  tags:
+    - fetch_container_image
 
 - name: get ceph version
   command: docker run --rm --entrypoint /usr/bin/ceph {{ ceph_docker_registry}}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }} --version
   changed_when: false
-  always_run: yes
+  check_mode: no
   register: ceph_version
 
 - name: set_fact ceph_version ceph_version.stdout.split
@@ -106,8 +98,3 @@
 # # because it creates the directories needed by the latter.
 - name: include dirs_permissions.yml
   include: dirs_permissions.yml
-
-- name: include selinux.yml
-  include: selinux.yml
-  when:
-    - ansible_os_family == 'RedHat'

@@ -62,7 +62,7 @@ The ``master`` branch should be considered experimental and used with caution.
 - ``stable-2.1`` Support for ceph version ``jewel``. This branch supports ansible versions
   ``2.1`` and ``2.2.1``.
 
-- ``stable-2.2`` Support for ceph versions ``jewel`` and ``kraken``. This branch supports ansible versions
+- ``stable-2.2`` Support for ceph versions ``jewel`` and ``luminous``. This branch supports ansible versions
   ``2.1`` and ``2.2.2``.
 
 - ``stable-3.0`` Support for ceph versions ``jewel`` and ``luminous``. This branch supports ansible versions
@@ -171,7 +171,7 @@ ceph.conf Configuration
 -----------------------
 
 The supported method for defining your ceph.conf is to use the ``ceph_conf_overrides`` variable. This allows you to specify configuration options using
-an INI format. This variable can be used to override sections already defined in ceph.conf (see: ``roles/ceph-common/templates/ceph.conf.j2``) or to provide
+an INI format. This variable can be used to override sections already defined in ceph.conf (see: ``roles/ceph-config/templates/ceph.conf.j2``) or to provide
 new configuration options. The following sections in ceph.conf are supported: [global], [mon], [osd], [mds] and [rgw].
 
 An example::
@@ -185,7 +185,7 @@ An example::
 
 .. note::
     We will no longer accept pull requests that modify the ceph.conf template unless it helps the deployment. For simple configuration tweaks
-    please use the `ceph_conf_overrides` variable.
+    please use the ``ceph_conf_overrides`` variable.
 
 Full documentation for configuring each of the ceph daemon types are in the following sections.
 

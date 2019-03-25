@@ -1,0 +1,95 @@
+- name: creates logical volumes for the bucket index or fs journals on a single device and prepares for use of osd_scenario=lvm. 
+  become: true
+  hosts:
+  - osds
+
+  vars:
+    logfile: |
+      Suggested cut and paste under "lvm_volumes:" in "group_vars/osds.yml" for configuring with osd_scenario=lvm
+      -----------------------------------------------------------------------------------------------------------
+      {% for hdd in hdd_devices %}
+        - data: {{ hdd_lv_prefix }}-{{ hdd.split('/')[-1] }}
+          data_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
+          journal: {{ hdd_journal_prefix }}-{{ hdd.split('/')[-1] }}
+          journal_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
+      {% endfor %}
+
+  tasks:
+
+  - name: include vars of lv_vars_collocated.yaml
+    include_vars:
+      file: lv_vars_collocated.yml
+    failed_when: false
+
+  #FG#
+  - include: ../roles/ceph-defaults/tasks/create_devices_list.yml
+    # FG: Always execute: possibly create devices from devices_multipath_regex when devices_multipath_auto
+    static: False
+    when:
+     - devices_multipath_auto is defined and devices_multipath_auto
+
+  - name: find out what partition was created for each device (/dev/mapper/ case), assume ceph ends with '1'
+    shell: "ls -1 {{ item }}*1 | grep {{ item }} "
+    ignore_errors: True
+    register: devices_ceph_partition
+    with_items:
+     - "{{ devices|unique }}"
+    when:
+     - not osd_auto_discovery
+     - devices_multipath_auto is defined and devices_multipath_auto
+  - debug: var=devices_ceph_partition
+
+  - name: tentative list of selected multipaths, namely devices with not partition ending with '1'
+    set_fact: hdd_devices_list="{{ devices_ceph_partition.results | selectattr('stdout', 'eq', '') | map(attribute='item') | list }}"
+    when:
+     - "has_multipath.rc == 0"
+
+  - pause:
+
+  #FG#
+  - name: create hdd_devices
+    set_fact:
+      hdd_devices: "{{ hdd_devices_list }}"
+
+  - debug: var=hdd_devices
+
+  # need to check if lvm2 is installed
+  - name: install lvm2
+    package:
+      name: lvm2
+      state: present
+
+  # Make sure all hdd devices have a unique volume group
+  - name: create vgs for all hdd devices
+    lvg:
+      force: yes
+      pvs: "{{ item }}"
+      pesize: 4
+      state: present
+      vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
+    with_items:
+      - "{{ hdd_devices }}"
+
+  - name: create lvs for fs journals for hdd devices
+    lvol:
+      lv: "{{ hdd_journal_prefix }}-{{ item.split('/')[-1] }}"
+      vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
+      size: "{{ journal_size }}"
+    with_items:
+      - "{{ hdd_devices }}"
+
+  - name: create lvs for the data portion on hdd devices
+    lvol:
+      lv: "{{ hdd_lv_prefix }}-{{ item.split('/')[-1] }}"
+      vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
+      size: "{{ hdd_lv_size }}"
+      pvs: "{{ item }}"
+    with_items:
+      - "{{ hdd_devices }}"
+
+  - name: "write output for osds.yml to {{ logfile_path }}"
+    become: false
+    copy:
+      content: "{{ logfile }}"
+      dest: "{{ logfile_path }}"
+    delegate_to: localhost

@@ -2,12 +2,6 @@
 # You can override default vars defined in defaults/main.yml here,
 # but I would advice to use host or group vars instead
 
-raw_journal_devices: [] # backward compatibility with stable-2.2, will disappear in stable 3.1
-journal_collocation: False # backward compatibility with stable-2.2, will disappear in stable 3.1
-raw_multi_journal: False # backward compatibility with stable-2.2, will disappear in stable 3.1
-dmcrypt_journal_collocation: False # backward compatibility with stable-2.2, will disappear in stable 3.1
-dmcrypt_dedicated_journal: False # backward compatibility with stable-2.2, will disappear in stable 3.1
-
 
 ###########
 # GENERAL #
@@ -45,6 +39,7 @@ devices: []
 
 
 #'osd_auto_discovery'  mode prevents you from filling out the 'devices' variable above.
+#  You can use this option with First and Forth and Fifth OSDS scenario.
 # Device discovery is based on the Ansible fact 'ansible_devices'
 # which reports all the devices on a system. If chosen all the disks
 # found will be passed to ceph-disk. You should not be worried on using
@@ -55,7 +50,7 @@ osd_auto_discovery: false
 
 # Encrypt your OSD device using dmcrypt
 # If set to True, no matter which osd_objecstore and osd_scenario you use the data will be encrypted
-dmcrypt: "{{ True if dmcrypt_journal_collocation or dmcrypt_dedicated_journal else False }}" # backward compatibility with stable-2.2, will disappear in stable 3.1
+dmcrypt: False
 
 
 # I. First scenario: collocated
@@ -79,7 +74,7 @@ dmcrypt: "{{ True if dmcrypt_journal_collocation or dmcrypt_dedicated_journal el
 #
 # Note: This scenario uses the ceph-disk tool to provision OSDs
 
-osd_scenario: "{{ 'collocated' if journal_collocation or dmcrypt_journal_collocation else 'non-collocated' if raw_multi_journal or dmcrypt_dedicated_journal else 'dummy' }}" # backward compatibility with stable-2.2, will disappear in stable 3.1
+osd_scenario: dummy
 valid_osd_scenarios:
   - collocated
   - non-collocated
@@ -126,8 +121,7 @@ valid_osd_scenarios:
 # 'data' is only 100MB big and do not store any of your data, it's just a bunch of Ceph metadata.
 # 'block' will store all your actual data.
 # - The devices in 'dedicated_devices' will get 1 partition for RocksDB DB, called 'block.db'
-#  and one for RocksDB WAL, called 'block.wal'. To use a single partition for RocksDB and WAL together
-#  set bluestore_wal_devices to [] (supported only for non-containerized deployment).
+#  and one for RocksDB WAL, called 'block.wal'
 #
 # By default dedicated_devices will represent block.db
 #
@@ -141,7 +135,7 @@ valid_osd_scenarios:
 # /dev/sdb2: PARTLABEL="ceph block.wal" PARTUUID="af3f8327-9aa9-4c2b-a497-cf0fe96d126a"
 #
 # Note: This scenario uses the ceph-disk tool to provision OSDs
-dedicated_devices: "{{ raw_journal_devices if raw_multi_journal or dmcrypt_dedicated_journal else [] }}" # backward compatibility with stable-2.2, will disappear in stable 3.1
+dedicated_devices: []
 
 
 # More device granularity for Bluestore
@@ -150,8 +144,6 @@ dedicated_devices: "{{ raw_journal_devices if raw_multi_journal or dmcrypt_dedic
 #
 # By default, if 'bluestore_wal_devices' is empty, it will get the content of 'dedicated_devices'.
 # If set, then you will have a dedicated partition on a specific device for block.wal.
-#
-# Set bluestore_wal_devices: [] to use the same partition for RocksDB and WAL (supported only for non-containerized deployment).
 #
 # Example of what you will get:
 # [root@ceph-osd0 ~]# blkid /dev/sd*
@@ -219,8 +211,6 @@ bluestore_wal_devices: "{{ dedicated_devices }}"
 #   - data: /dev/sdb1
 
 lvm_volumes: []
-crush_device_class: ""
-osds_per_device: 1
 
 
 ##########

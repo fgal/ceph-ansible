@@ -47,3 +47,4 @@
     devices: "{{ devices_multipath_list }}"
 
 - debug: var=devices
+

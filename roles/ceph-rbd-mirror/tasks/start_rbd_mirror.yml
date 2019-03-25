@@ -33,7 +33,7 @@
     enabled: no
   changed_when: false
   when:
-    - ceph_release_num.{{ ceph_release }} >= ceph_release_num.luminous
+    - ceph_release_num[ceph_release] >= ceph_release_num.luminous
 
 # This task is a workaround for rbd-mirror not starting after reboot
 # The upstream fix is: https://github.com/ceph/ceph/pull/17969
@@ -54,4 +54,4 @@
     enabled: yes
   changed_when: false
   when:
-    - ceph_release_num.{{ ceph_release }} >= ceph_release_num.luminous
+    - ceph_release_num[ceph_release] >= ceph_release_num.luminous

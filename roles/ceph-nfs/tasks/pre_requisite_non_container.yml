@@ -41,12 +41,27 @@
   apt_repository:
     repo: "deb {{ nfs_ganesha_stable_deb_repo }} {{ ceph_stable_distro_source | default(ansible_lsb.codename) }} main"
     state: present
-  changed_when: false
+    update_cache: no
+  register: add_ganesha_apt_repo
   when:
     - ansible_os_family == 'Debian'
     - nfs_ganesha_stable
     - ceph_origin == 'repository'
     - ceph_repository == 'community'
+
+- name: update apt cache
+  apt:
+    update_cache: yes
+  register: update_ganesha_apt_cache
+  retries: 5
+  delay: 2
+  until: update_ganesha_apt_cache | success
+  when:
+    - ansible_os_family == 'Debian'
+    - nfs_ganesha_stable
+    - ceph_origin == 'repository'
+    - ceph_repository == 'community'
+    - add_ganesha_apt_repo | changed
 
 - name: fetch nfs-ganesha development repository
   uri:
@@ -101,41 +116,33 @@
     - ceph_repository != 'rhcs'
     - ansible_os_family == 'Debian'
 
-# debian installation
-- name: install nfs cephfs gateway
-  package:
-    name: nfs-ganesha-ceph
-  when:
-    - (ceph_origin == 'repository' or ceph_origin == 'distro')
-    - ceph_repository != 'rhcs'
-    - ansible_os_family == 'Debian'
-    - nfs_file_gw
-
-- name: install nfs rgw gateway - suse
+- name: install nfs rgw/cephfs gateway - suse
   zypper:
-    name: "{{ item }}"
+    name: "{{ item.name }}"
     disable_gpg_check: yes
   with_items:
-    - nfs-ganesha-rgw
-    - radosgw
+    - { name: 'nfs-ganesha-rgw', install: "{{ nfs_obj_gw }}" }
+    - { name: 'radosgw', install: "{{ nfs_obj_gw }}" }
+    - { name: 'nfs-ganesha-ceph', install: "{{ nfs_file_gw }}" }
   when:
     - (ceph_origin == 'repository' or ceph_origin == 'distro')
     - ceph_repository != 'rhcs'
     - ansible_os_family == 'Suse'
-    - nfs_obj_gw
+    - item.install | bool
 
-- name: install nfs rgw gateway - debian
+- name: install nfs rgw/cephfs gateway - debian
   apt:
-    name: "{{ item }}"
+    name: "{{ item.name }}"
     allow_unauthenticated: yes
   with_items:
-    - nfs-ganesha-rgw
-    - radosgw
+    - { name: 'nfs-ganesha-rgw', install: "{{ nfs_obj_gw }}" }
+    - { name: 'radosgw', install: "{{ nfs_obj_gw }}" }
+    - { name: 'nfs-ganesha-ceph', install: "{{ nfs_file_gw }}" }
   when:
     - (ceph_origin == 'repository' or ceph_origin == 'distro')
     - ceph_repository != 'rhcs'
     - ansible_os_family == 'Debian'
-    - nfs_obj_gw
+    - item.install | bool
 
 # debian_rhcs installation
 - name: install red hat storage nfs gateway for debian
@@ -195,7 +202,6 @@
     mode: "0600"
   with_items:
     - { name: "/var/lib/ceph/bootstrap-rgw/{{ cluster }}.keyring", copy_key: "{{ nfs_obj_gw }}" }
-    - { name: "/etc/ceph/{{ cluster }}.client.admin.keyring", copy_key: "{{ copy_admin_key }}" }
   when:
     - cephx
     - item.copy_key|bool

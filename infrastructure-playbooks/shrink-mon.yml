@@ -23,19 +23,22 @@
     - debug: msg="gather facts on all Ceph hosts for following reference"
 
 - name: confirm whether user really meant to remove monitor from the ceph cluster
+
   hosts:
     - localhost
+
   become: true
+
   vars_prompt:
     - name: ireallymeanit
       prompt: Are you sure you want to shrink the cluster?
       default: 'no'
       private: no
+
   vars:
     mon_group_name: mons
 
-  tasks:
-    # pre task for following import
+  pre_tasks:
     - name: exit playbook, if only one monitor is present in cluster
       fail:
         msg: "You are about to shrink the only monitor present in the cluster.
@@ -67,13 +70,10 @@
       when:
         - ireallymeanit != 'yes'
 
-    - import_role:
-        name: ceph-defaults
+  roles:
+    - ceph-defaults
 
-    - import_role:
-        name: ceph-facts
-
-    # post_tasks for preceding import
+  post_tasks:
     - name: pick a monitor different than the one we want to remove
       set_fact:
         mon_host: "{{ item }}"
@@ -81,9 +81,9 @@
       when:
         - item != mon_to_kill
 
-    - name: "set_fact docker_exec_cmd build {{ container_binary }} exec command (containerized)"
+    - name: set_fact docker_exec_cmd build docker exec command (containerized)
       set_fact:
-        docker_exec_cmd: "{{ container_binary }} exec ceph-mon-{{ hostvars[mon_host]['ansible_hostname'] }}"
+        docker_exec_cmd: "docker exec ceph-mon-{{ hostvars[mon_host]['ansible_hostname'] }}"
       when: containerized_deployment
 
     - name: exit playbook, if can not connect to the cluster

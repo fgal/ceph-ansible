@@ -8,7 +8,7 @@ DOCKER_ENV=""
 #############
 {% if disk_list.get('rc') == 0 -%}
 function expose_partitions () {
-DOCKER_ENV=$(docker run --rm --net=host --name expose_partitions_${1} --privileged=true -v /dev/:/dev/ -v /etc/ceph:/etc/ceph -e CLUSTER={{ cluster }} -e OSD_DEVICE=/dev/${1} {{ ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }} disk_list)
+DOCKER_ENV=$(docker run --rm --net=host --name expose_partitions_${1} --privileged=true -v /dev/:/dev/ -v /etc/ceph:/etc/ceph:z -e CLUSTER={{ cluster }} -e OSD_DEVICE=/dev/${1} {{ ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }} disk_list)
 }
 {% else -%}
 # NOTE(leseb): maintains backwards compatibility with old ceph-docker Jewel images
@@ -61,15 +61,22 @@ expose_partitions "$1"
   --privileged=true \
   --pid=host \
   --memory={{ ceph_osd_docker_memory_limit }} \
-  {% if ceph_docker_version.split('.')[0] | version_compare('13', '>=') -%}
+  {% if ceph_docker_version.split('.')[0] is version_compare('13', '>=') -%}
   --cpus={{ ceph_osd_docker_cpu_limit }} \
   {% else -%}
   --cpu-quota={{ ceph_osd_docker_cpu_limit * 100000 }} \
   {% endif -%}
+  {% if ceph_osd_docker_cpuset_cpus is defined -%}
+  --cpuset-cpus='{{ ceph_osd_docker_cpuset_cpus }}' \
+  {% endif -%}
+  {% if ceph_osd_docker_cpuset_mems is defined -%}
+  --cpuset-mems='{{ ceph_osd_docker_cpuset_mems }}' \
+  {% endif -%}
   -v /dev:/dev \
   -v /etc/localtime:/etc/localtime:ro \
-  -v /var/lib/ceph:/var/lib/ceph \
-  -v /etc/ceph:/etc/ceph \
+  -v /var/lib/ceph:/var/lib/ceph:z \
+  -v /etc/ceph:/etc/ceph:z \
+  -v /var/run/ceph:/var/run/ceph:z \
   $DOCKER_ENV \
   {% if ansible_distribution == 'Ubuntu' -%}
   --security-opt apparmor:unconfined \

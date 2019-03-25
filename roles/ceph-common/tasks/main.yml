@@ -12,17 +12,19 @@
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
   static: False
 
-- name: include misc/system_tuning.yml
-  include: misc/system_tuning.yml
-  when:
-    - osd_group_name in group_names
-  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
-  static: False
-
 - name: include installs/install_on_redhat.yml
   include: installs/install_on_redhat.yml
   when:
     - ansible_os_family == 'RedHat'
+  tags:
+    - package-install
+  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
+  static: False
+
+- name: include installs/install_on_suse.yml
+  include: installs/install_on_suse.yml
+  when:
+    - ansible_os_family == 'Suse'
   tags:
     - package-install
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
@@ -46,26 +48,18 @@
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
   static: False
 
-- name: include misc/ntp_redhat.yml
-  include: misc/ntp_redhat.yml
-  when:
-    - ansible_os_family == 'RedHat'
-    - ntp_service_enabled
+- name: include ntp setup tasks
+  include: misc/setup_ntp.yml
+  when: ntp_service_enabled
+  tags: configure_ntp
   # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
   static: False
 
-- name: include misc/ntp_debian.yml
-  include: misc/ntp_debian.yml
-  when:
-    - ansible_os_family == 'Debian'
-    - ntp_service_enabled
-  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
-  static: False
 
 - name: get ceph version
   command: ceph --version
   changed_when: false
-  always_run: yes
+  check_mode: no
   register: ceph_version
 
 - name: set_fact ceph_version
@@ -80,17 +74,22 @@
   tags:
     - always
 
+- name: include misc/configure_firewall_rpm.yml
+  include: misc/configure_firewall_rpm.yml
+  when:
+    - configure_firewall
+    - ansible_os_family in ['RedHat', 'Suse']
+  # Hard code this so we will skip the entire file instead of individual tasks (Default isn't Consistent)
+  static: False
+
 - name: include facts_mon_fsid.yml
   include: facts_mon_fsid.yml
   run_once: true
   when:
     - cephx
-    - not monitor_keyring_conf.stat.exists
-    - ceph_current_fsid.rc == 0
     - mon_group_name in group_names
-
-- name: include create_ceph_initial_dirs.yml
-  include: create_ceph_initial_dirs.yml
+    - not monitor_keyring_conf.stat.exists
+    - ceph_current_status.fsid is defined
 
 - name: include create_rbd_client_dir.yml
   include: create_rbd_client_dir.yml

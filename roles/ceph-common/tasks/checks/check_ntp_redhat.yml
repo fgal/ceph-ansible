@@ -1,5 +1,0 @@
----
-- name: install ntp on redhat
-  package:
-    name: ntp
-    state: present

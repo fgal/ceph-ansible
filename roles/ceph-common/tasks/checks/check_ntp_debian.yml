@@ -1,5 +1,0 @@
----
-- name: install ntp on debian
-  package:
-    name: ntp
-    state: present

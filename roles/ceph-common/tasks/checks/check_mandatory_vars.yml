@@ -29,7 +29,7 @@
   when:
     - ceph_origin != 'distro'
     - ceph_stable_release == 'dummy'
-    - ceph_repository not in ['rhcs', 'dev']
+    - ceph_repository not in ['rhcs', 'dev', 'obs']
   tags:
     - package-install
 
@@ -39,7 +39,7 @@
   when:
     - ceph_stable_release not in ceph_release_num
     - ceph_origin == 'repository'
-    - ceph_repository not in ['rhcs', 'dev']
+    - ceph_repository not in ['rhcs', 'dev', 'obs']
   tags:
     - package-install
 
@@ -82,3 +82,18 @@
     - radosgw_interface == 'interface'
     - radosgw_address == 'address'
     - radosgw_address_block == 'subnet'
+
+- name: warning deprecation for fqdn configuration
+  fail:
+    msg: "fqdn configuration is not supported anymore. Use 'use_fqdn_yes_i_am_sure: true' if you really want to use it. See release notes for more details"
+  when:
+    - mon_use_fqdn or mds_use_fqdn
+    - not use_fqdn_yes_i_am_sure
+
+- name: validate ntp daemon type
+  fail:
+    msg: "ntp_daemon_type must be one of chronyd, ntpd, or timesyncd"
+  when:
+    - ntp_service_enabled
+    - ntp_daemon_type not in ['chronyd', 'ntpd', 'timesyncd']
+

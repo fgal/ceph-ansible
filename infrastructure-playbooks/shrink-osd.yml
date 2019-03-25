@@ -1,13 +1,13 @@
 ---
-# This playbook shrinks Ceph OSDs that have been created with ceph-volume.
+# This playbook shrinks Ceph OSDs.
 # It can remove any number of OSD(s) from the cluster and ALL THEIR DATA
 #
 # Use it like this:
-# ansible-playbook lvm-shrink-osd.yml -e osd_to_kill=0,2,6
+# ansible-playbook shrink-osd.yml -e osd_to_kill=0,2,6
 #     Prompts for confirmation to shrink, defaults to no and
 #     doesn't shrink the cluster. yes shrinks the cluster.
 #
-# ansible-playbook -e ireallymeanit=yes|no lvm-shrink-osd.yml
+# ansible-playbook -e ireallymeanit=yes|no shrink-osd.yml
 #     Overrides the prompt using -e option. Can be used in
 #     automation scripts to avoid interactive prompt.
 
@@ -55,22 +55,15 @@
            -e osd_to_kill=0,1,2,3 argument."
       when: osd_to_kill is not defined
 
-  tasks:
-    - import_role:
-        name: ceph-defaults
-
-    - import_role:
-        name: ceph-facts
+  roles:
+    - ceph-defaults
 
   post_tasks:
+
     - name: set_fact docker_exec_cmd build docker exec command (containerized)
       set_fact:
-        docker_exec_cmd: "{{ container_binary }} exec ceph-mon-{{ hostvars[groups[mon_group_name][0]]['ansible_hostname'] }}"
+        docker_exec_cmd: "docker exec ceph-mon-{{ hostvars[groups[mon_group_name][0]]['ansible_hostname'] }}"
       when: containerized_deployment
-
-    - name: set remote OSD user
-      set_fact:
-        remote_osd_user: "{{ hostvars[groups[osd_group_name][0]]['ansible_user'] }}"
 
     - name: exit playbook, if can not connect to the cluster
       command: "{{ docker_exec_cmd }} timeout 5 ceph --cluster {{ cluster }} health"
@@ -88,7 +81,7 @@
 
     - name: set_fact osd_hosts
       set_fact:
-        osd_hosts: "{{ osd_hosts | default([]) + [ [ (item.stdout | from_json).crush_location.host, (item.stdout | from_json).osd_fsid ] ] }}"
+        osd_hosts: "{{ osd_hosts | default([]) + [ (item.stdout | from_json).crush_location.host ] }}"
       with_items: "{{ find_osd_hosts.results }}"
 
     - name: check if ceph admin key exists on the osd nodes
@@ -138,10 +131,12 @@
         - containerized_deployment
 
     - name: resolve parent device
-      command: lsblk --nodeps -no pkname "{{ item.stdout }}"
+      command: lsblk --nodeps -no pkname "{{ item.0.stdout }}"
       register: resolved_parent_device
-      with_items:
+      delegate_to: "{{ item.1 }}"
+      with_together:
         - "{{ osd_to_kill_disks.results }}"
+        - "{{ osd_hosts }}"
       when:
         - containerized_deployment
 
@@ -149,55 +144,58 @@
       shell: |
         docker run --rm \
         --privileged=true \
-        --name ceph-osd-zap-{{ ansible_hostname }}-{{ item.stdout }} \
+        --name ceph-osd-zap-{{ ansible_hostname }}-{{ item.0.stdout }} \
         -v /dev/:/dev/ \
-        -e OSD_DEVICE=/dev/{{ item.stdout }} \
+        -e OSD_DEVICE=/dev/{{ item.0.stdout }} \
         {{ ceph_docker_registry }}/{{ ceph_docker_image }}:{{ ceph_docker_image_tag }} \
         zap_device
-      with_items:
+      delegate_to: "{{ item.1 }}"
+      with_together:
         - "{{ resolved_parent_device.results }}"
+        - "{{ osd_hosts }}"
       when:
         - containerized_deployment
 
     - name: deactivating osd(s)
       command: ceph-disk deactivate --cluster {{ cluster }} --deactivate-by-id {{ item.0 }} --mark-out
       run_once: true
-      delegate_to: "{{ groups[mon_group_name][0] }}"
-      remote_user: "{{ remote_osd_user }}"
-      with_items: "{{ osd_to_kill.split(',') }}"
+      with_together:
+        - "{{ osd_to_kill.split(',') }}"
+        - "{{ osd_hosts }}"
+      delegate_to: "{{ item.1 }}"
+      when:
+        - not containerized_deployment
 
-    - name: stop osd(s) service
-      service:
-        name: ceph-osd@{{ item.0 }}
-        state: stopped
-        enabled: no
-      loop: "{{ osd_to_kill.split(',')|zip(osd_hosts)|list }}"
-      delegate_to: "{{ item.1.0 }}"
+    - name: destroying osd(s)
+      command: ceph-disk destroy --cluster {{ cluster }} --destroy-by-id {{ item.0 }} --zap
+      run_once: true
+      with_together:
+        - "{{ osd_to_kill.split(',') }}"
+        - "{{ osd_hosts }}"
+      delegate_to: "{{ item.1 }}"
+      when:
+        - not containerized_deployment
 
-    - name: zap osd devices
-      ceph_volume:
-        action: "zap"
-        osd_fsid: "{{ item.1 }}"
-      environment:
-        CEPH_VOLUME_DEBUG: 1
-        CEPH_CONTAINER_IMAGE: "{{ ceph_docker_registry + '/' + ceph_docker_image + ':' + ceph_docker_image_tag if containerized_deployment else None }}"
-        CEPH_CONTAINER_BINARY: "{{ container_binary }}"
-      delegate_to: "{{ item.0 }}"
-      loop: "{{ osd_hosts }}"
-
-    - name: purge osd(s) from the cluster
-      command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd purge {{ item }} --yes-i-really-mean-it"
+    - name: remove osd(s) from crush_map when ceph-disk destroy fail
+      command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd crush remove osd.{{ item }}"
       run_once: true
       delegate_to: "{{ groups[mon_group_name][0] }}"
-      remote_user: "{{ remote_osd_user }}"
+      with_items: "{{ osd_to_kill.split(',') }}"
+
+    - name: delete osd(s) auth key when ceph-disk destroy fail
+      command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} auth del osd.{{ item }}"
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      with_items: "{{ osd_to_kill.split(',') }}"
+
+    - name: deallocate osd(s) id when ceph-disk destroy fail
+      command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd rm {{ item }}"
+      delegate_to: "{{ groups[mon_group_name][0] }}"
       with_items: "{{ osd_to_kill.split(',') }}"
 
     - name: show ceph health
       command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} -s"
       delegate_to: "{{ groups[mon_group_name][0] }}"
-      remote_user: "{{ remote_osd_user }}"
 
     - name: show ceph osd tree
       command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd tree"
       delegate_to: "{{ groups[mon_group_name][0] }}"
-      remote_user: "{{ remote_osd_user }}"

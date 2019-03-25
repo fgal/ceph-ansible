@@ -5,8 +5,9 @@
     insertafter: EOF
     create: yes
     line: "CLUSTER={{ cluster }}"
+    regexp: "^CLUSTER="
   when:
-    - ansible_os_family == "RedHat"
+    - ansible_os_family in ["RedHat", "Suse"]
 
 # NOTE(leseb): we are performing the following check
 # to ensure any Jewel installation will not fail.
@@ -22,7 +23,7 @@
   stat:
     path: /etc/default/ceph
   register: etc_default_ceph
-  always_run: true
+  check_mode: no
   when:
     - ansible_os_family == "Debian"
 
@@ -31,6 +32,7 @@
     dest: /etc/default/ceph
     insertafter: EOF
     create: yes
+    regexp: "^CLUSTER="
     line: "CLUSTER={{ cluster }}"
   when:
     - ansible_os_family == "Debian"
@@ -42,6 +44,7 @@
     dest: /etc/default/ceph/ceph
     insertafter: EOF
     create: yes
+    regexp: "^CLUSTER="
     line: "CLUSTER={{ cluster }}"
   when:
     - ansible_os_family == "Debian"

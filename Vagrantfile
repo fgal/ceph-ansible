@@ -21,9 +21,9 @@ NISCSI_GWS      = settings['iscsi_gw_vms']
 MGRS            = settings['mgr_vms']
 PUBLIC_SUBNET   = settings['public_subnet']
 CLUSTER_SUBNET  = settings['cluster_subnet']
-BOX             = settings['vagrant_box']
-CLIENT_BOX      = settings['client_vagrant_box'] || settings['vagrant_box']
-BOX_URL         = settings['vagrant_box_url']
+BOX             = ENV['CEPH_ANSIBLE_VAGRANT_BOX'] || settings['vagrant_box']
+CLIENT_BOX      = ENV['CEPH_ANSIBLE_VAGRANT_BOX'] || settings['client_vagrant_box'] || BOX
+BOX_URL         = ENV['CEPH_ANSIBLE_VAGRANT_BOX_URL'] || settings['vagrant_box_url']
 SYNC_DIR        = settings['vagrant_sync_dir']
 MEMORY          = settings['memory']
 ETH             = settings['eth']
@@ -57,7 +57,7 @@ ansible_provision = proc do |ansible|
     'nfss'             => (0..NNFSS - 1).map { |j| "#{LABEL_PREFIX}nfs#{j}" },
     'rbd_mirrors'      => (0..NRBD_MIRRORS - 1).map { |j| "#{LABEL_PREFIX}rbd_mirror#{j}" },
     'clients'          => (0..CLIENTS - 1).map { |j| "#{LABEL_PREFIX}client#{j}" },
-    'iscsigws'        => (0..NISCSI_GWS - 1).map { |j| "#{LABEL_PREFIX}iscsi_gw#{j}" },
+    'iscsigws'        => (0..NISCSI_GWS - 1).map { |j| "#{LABEL_PREFIX}iscsigw#{j}" },
     'mgrs'             => (0..MGRS - 1).map { |j| "#{LABEL_PREFIX}mgr#{j}" }
   }
 
@@ -79,7 +79,6 @@ ansible_provision = proc do |ansible|
       ceph_mon_docker_subnet: "#{PUBLIC_SUBNET}.0/24",
       devices: settings['disks'],
       ceph_docker_on_openstack: BOX == 'openstack',
-      ceph_rgw_civetweb_port: 8080,
       radosgw_interface: ETH,
       generate_fsid: 'true',
     })
@@ -480,13 +479,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       osd.vm.provider :virtualbox do |vb|
         # Create our own controller for consistency and to remove VM dependency
         unless File.exist?("disk-#{i}-0.vdi")
-          # Adding OSD Controller; 
+          # Adding OSD Controller;
           # once the first disk is there assuming we don't need to do this
           vb.customize ['storagectl', :id,
                         '--name', 'OSD Controller',
                         '--add', 'scsi']
         end
-        
+
         (0..1).each do |d|
           vb.customize ['createhd',
                         '--filename', "disk-#{i}-#{d}",

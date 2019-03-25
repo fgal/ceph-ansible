@@ -59,6 +59,10 @@ push () {
   git push origin "$bkp_branch"
 }
 
+create_pr () {
+  hub pull-request -h ceph/ceph-ansible:"$bkp_branch" -b "$stable_branch" -F -
+}
+
 cleanup () {
   echo "Moving back to previous branch"
   git checkout -
@@ -84,4 +88,9 @@ verify_commit
 checkout
 cherry_pick
 push
+create_pr <<MSG
+Backport of ${3}
+
+Backport of #${3}
+MSG
 cleanup
