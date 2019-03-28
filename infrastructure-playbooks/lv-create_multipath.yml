@@ -7,6 +7,7 @@
     logfile: |
       Suggested cut and paste under "lvm_volumes:" in "group_vars/osds.yml" for configuring with osd_scenario=lvm
       -----------------------------------------------------------------------------------------------------------
+      # {{ ansible_hostname }}
       {% for hdd in hdd_devices %}
         - data: {{ hdd_lv_prefix }}-{{ hdd.split('/')[-1] }}
           data_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
@@ -44,7 +45,7 @@
     when:
      - "has_multipath.rc == 0"
 
-  - pause:
+#FG#  - pause:
 
   #FG#
   - name: create hdd_devices
@@ -75,6 +76,7 @@
       lv: "{{ hdd_journal_prefix }}-{{ item.split('/')[-1] }}"
       vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
       size: "{{ journal_size }}"
+      state: present
     with_items:
       - "{{ hdd_devices }}"
 
@@ -83,13 +85,14 @@
       lv: "{{ hdd_lv_prefix }}-{{ item.split('/')[-1] }}"
       vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
       size: "{{ hdd_lv_size }}"
-      pvs: "{{ item }}"
+      state: present
+      shrink: false
     with_items:
       - "{{ hdd_devices }}"
 
-  - name: "write output for osds.yml to {{ logfile_path }}"
+  - name: "write output for osds.yml to {{ logfile_path }}_{{ ansible_hostname }}"
     become: false
     copy:
       content: "{{ logfile }}"
-      dest: "{{ logfile_path }}"
+      dest: "{{ logfile_path }}_{{ ansible_hostname }}"
     delegate_to: localhost
