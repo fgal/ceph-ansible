@@ -1,0 +1,31 @@
+---
+# This playbook configures LVM, installs package and adds filter
+# line to /etc/lvm/lvm.conf such that LVM and multipath can coexist.
+
+- name: configure LVM and relevant configuration file
+  become: true
+  hosts:
+  - osds
+
+  vars:
+    lvm_config_file: /etc/lvm/lvm.conf
+
+  tasks:
+
+  - name: Check whether vgs command is defined
+    shell: vgs
+    ignore_errors: true
+    register: lvminstalled
+
+  - name: Install LVM
+    yum: name=lvm2 state=installed
+    when: lvminstalled.rc
+  
+  - name: Add filter line to lvm.conf
+    lineinfile:
+      dest: "{{ lvm_config_file }}"
+      state: "{{ item.state }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.after }}"
+    with_items:
+    - { state: "present", line: 'filter = [ "a|/dev/mpath/.*|","a|/dev/mapper/.*|","a|/dev/cciss/.*|","a|/dev/sda[0-9]|","r|/dev/sd.*|" ]', after: '.* filter =.*' }
