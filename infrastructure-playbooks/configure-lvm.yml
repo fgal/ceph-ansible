@@ -29,3 +29,9 @@
       insertafter: "{{ item.after }}"
     with_items:
     - { state: "present", line: 'filter = [ "a|/dev/mpath/.*|","a|/dev/mapper/.*|","a|/dev/cciss/.*|","a|/dev/sda[0-9]|","r|/dev/sd.*|" ]', after: '.* filter =.*' }
+
+  - name: enable and start lvm2-lvmetad service
+    service:
+      name: lvm2-lvmetad
+      state: restarted
+      enabled: yes
