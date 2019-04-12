@@ -40,10 +40,19 @@
   when:
    - "has_multipath.rc == 0"
 
-- debug: var=devices_multipath_list
+#FG# - debug: var=devices_multipath_list
 
 - name: combine devices
   set_fact:
     devices: "{{ devices_multipath_list }}"
 
 - debug: var=devices
+
+#FG#
+- name: check if file containing list of LVM volumes exists
+  stat: 
+    path: "{{ logfile_path }}_{{ ansible_hostname }}"
+  register: lvm_volumes_file
+- name: Include file with lvm_volumes definitions
+  include_vars: "{{ logfile_path }}_{{ ansible_hostname }}"
+  when: lvm_volumes_file.stat.exists == True
