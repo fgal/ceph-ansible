@@ -49,10 +49,15 @@
 - debug: var=devices
 
 #FG#
+- name: set useful variable logfile_path
+  set_fact:
+    logfile_path: lv-create.log
 - name: check if file containing list of LVM volumes exists
   stat: 
     path: "{{ logfile_path }}_{{ ansible_hostname }}"
+  delegate_to: localhost
   register: lvm_volumes_file
 - name: Include file with lvm_volumes definitions
   include_vars: "{{ logfile_path }}_{{ ansible_hostname }}"
+  delegate_to: localhost
   when: lvm_volumes_file.stat.exists == True
