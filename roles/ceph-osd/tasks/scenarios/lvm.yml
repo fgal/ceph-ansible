@@ -1,5 +1,14 @@
 ---
 
+#FG#
+- name: check if file containing list of LVM volumes
+  stat: 
+    path: "{{ logfile_path }}_{{ ansible_hostname }}"
+  register: lvm_volumes_file
+- name: Include file with lvm_volumes definitions
+  include_vars: "{{ logfile_path }}_{{ ansible_hostname }}"
+  when: lvm_volumes_file.exists == True
+
 - name: "use ceph-volume to create {{ osd_objectstore }} osds"
   ceph_volume:
     cluster: "{{ cluster }}"

@@ -8,6 +8,7 @@
       # Suggested cut and paste under "lvm_volumes:" in "group_vars/osds.yml" for configuring with osd_scenario=lvm
       # -----------------------------------------------------------------------------------------------------------
       # {{ ansible_hostname }}
+      lvm_volumes:
       {% for hdd in hdd_devices %}
         - data: {{ hdd_lv_prefix }}-{{ hdd.split('/')[-1] }}
           data_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
@@ -17,9 +18,9 @@
 
   tasks:
 
-  - name: include vars of lv_vars_collocated.yaml
+  - name: include vars of lv_vars_multipath.yaml
     include_vars:
-      file: lv_vars_collocated.yml
+      file: lv_vars_multipath.yml
     failed_when: false
 
   #FG#
