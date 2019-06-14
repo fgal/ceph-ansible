@@ -9,7 +9,7 @@
       # -----------------------------------------------------------------------------------------------------------
       # {{ ansible_hostname }}
       lvm_volumes:
-      {% for hdd in hdd_devices %}
+      {% for hdd in hdd_devices | sort %}
         - data: {{ hdd_lv_prefix }}-{{ hdd.split('/')[-1] }}
           data_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
           journal: {{ hdd_journal_prefix }}-{{ hdd.split('/')[-1] }}
