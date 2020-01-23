@@ -1,0 +1,181 @@
+---
+###
+#
+#  Move OSD which are outside of the CRUSH hierarchy to proper place
+#  Relies on hierarchy description in infrastructure-playbooks/vars/describeHierarchy.yaml
+#
+#  Execute like:
+#
+#    ansible-playbook -i cluster-primary/ infrastructure-playbooks/moveOSDtoHost.yml -e ireallymeanit=yes -e osd_to_move=168,216,309
+#  
+#  OSDs which are already in the hierarchy are silently skipped.
+#
+#  Copyright (c) 2020, Fulvio Galeazzi, Consortium GARR
+#
+###
+- name: gather facts and check the init system
+
+  hosts:
+    - "{{ mon_group_name|default('mons') }}"
+    - "{{ osd_group_name|default('osds') }}"
+
+  become: True
+  tasks:
+    - debug: msg="gather facts on all Ceph hosts for following reference"
+
+###
+
+- name: confirm whether user really meant to remove osd(s) from the cluster
+
+  hosts:
+    - localhost
+
+  become: true
+
+  vars_prompt:
+    - name: ireallymeanit
+      prompt: Are you sure you want to move OSD in crush map to proper host?
+      default: 'no'
+      private: no
+
+  vars:
+    mon_group_name: mons
+    osd_group_name: osds
+    ansible_ssh_user: "{{ hostvars[groups[osd_group_name][0]]['ansible_user'] }}"
+
+  pre_tasks:
+    - name: exit playbook, if user did not mean to move OSDs
+      fail:
+        msg: "Exiting shrink-osd playbook, no osd(s) was/were removed..
+           To shrink the cluster, either say 'yes' on the prompt or
+           or use `-e ireallymeanit=yes` on the command line when
+           invoking the playbook"
+      when: ireallymeanit != 'yes'
+
+    - name: exit playbook, if no osd(s) was/were given
+      fail:
+        msg: "osd_to_move must be declared
+          Exiting shrink-osd playbook, no OSD(s) was/were removed.
+           On the command line when invoking the playbook, you can use
+           -e osd_to_move=0,1,2,3 argument."
+      when: osd_to_move is not defined
+
+    - name: include vars of describeHierarchy.yaml
+      include_vars:
+        file: describeHierarchy.yaml
+      failed_when: false
+#    - debug: var=crush_map
+
+  roles:
+    - ceph-defaults
+
+  post_tasks:
+
+    - name: set_fact docker_exec_cmd build docker exec command (containerized)
+      set_fact:
+        docker_exec_cmd: "docker exec ceph-mon-{{ hostvars[groups[mon_group_name][0]]['ansible_hostname'] }}"
+      when: containerized_deployment
+
+    - name: exit playbook, if can not connect to the cluster
+      command: "{{ docker_exec_cmd }} timeout 5 ceph --cluster {{ cluster }} health"
+      register: ceph_health
+      until: ceph_health.stdout.find("HEALTH") > -1
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      retries: 5
+      delay: 2
+
+    - name: find the host(s) where the osd(s) is/are running on
+      command: "{{ docker_exec_cmd }} ceph --cluster {{ cluster }} osd find {{ item }}"
+      with_items: "{{ osd_to_move.split(',') }}"
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      register: find_osd_hosts
+
+#    - debug: var=find_osd_hosts
+
+    - name: set_fact osd_disks
+      set_fact:
+        osd_disks: "{{ osd_disks | default([]) + [ { 'theosd': (item.stdout | from_json).osd , 'theip': (item.stdout | from_json).ip.split(':')[0] } ] }}"
+      with_items: "{{ find_osd_hosts.results }}"
+      when:
+        - not (item.stdout | from_json).crush_location
+
+#    - debug: var=osd_disks
+
+    - name: check if ceph admin key exists on the osd nodes
+      stat:
+        path: "/etc/ceph/{{ cluster }}.client.admin.keyring"
+      register: ceph_admin_key
+      with_items: "{{ osd_disks }}"
+      delegate_to: "{{ item.theip }}"
+      failed_when: false
+      when:
+        - not containerized_deployment
+
+    - name: get LV name for each OSD
+      shell: |
+          theIP={{ item.theip }}
+          echo "THEIP:$theIP"
+          theOSD={{ item.theosd }}
+          echo "THEOSD:$theOSD"
+          theDevice=`/usr/sbin/lvs --noheadings --readonly --separator="," -o lv_tags,lv_path,lv_name,vg_name,lv_size,lv_uuid | grep ={{ item.theosd }}, | sed -n -e '/^\s*$/d' -e "s/^.*block_device=\([^,]\+\),.*osd_id=\([^,]\+\),.*,\(\S*\)$/\1/p"`
+          echo "DEVICE:$theDevice"
+          theLUN=`sg_scan -n $theDevice | sed -n -e "s/^.*lun=\(\S\+\).*$/\1/p"`
+          echo "LUN:$theLUN"
+      register: lun_paths
+      with_items: "{{ osd_disks }}"
+      delegate_to: "{{ item.theip }}"
+      failed_when: false
+      when:
+        - not containerized_deployment
+
+    - debug: var=lun_paths
+
+    - name: create dict from lun_paths
+      set_fact:
+        osd_map: "{{ osd_map|default([]) + [ {'ip': item.stdout | regex_search('THEIP:(.*)\n','\\1') | first, 'osd': item.stdout | regex_search('THEOSD:(.*)\\n','\\1') | first, 'device': item.stdout | regex_search('DEVICE:(.*)','\\1') | first, 'lun': item.stdout | regex_search('LUN:(.*)','\\1') | first } ] }}"
+      with_items: "{{ lun_paths.results }}"
+
+    - name: find storage name
+      set_fact:
+        var1: "{{ crush_map[item.ip].subelem | selectattr('name','equalto','r1srv07sto1') | list }}"
+        var2: "{{ crush_map[item.ip].subelem | selectattr('max','ge',item.lun | int) | selectattr('min','le',item.lun | int) | map(attribute='name') | list | first }}"
+      with_items:
+       - "{{ osd_map }}"
+
+    - name: final dict with all required info
+      set_fact:
+        cmd_dict: "{{ cmd_dict|default([]) + [ {'ip': item.ip,
+                                                'osd': item.osd,
+                                                'crushtype': crush_map[item.ip].subelem | selectattr('max','ge',item.lun | int) | selectattr('min','le',item.lun | int) | map(attribute='type') | list | first ,
+                                                'crushname': crush_map[item.ip].subelem | selectattr('max','ge',item.lun | int) | selectattr('min','le',item.lun | int) | map(attribute='name') | list | first
+                                                } ] }}"
+      with_items:
+       - "{{ osd_map }}"
+
+    - debug: var=cmd_dict
+
+    - name: create tempfile
+      tempfile:
+        state: file
+        suffix: cmd
+      register: thetempfile
+    - name: make tempfile readable
+      file:
+        path: "{{ thetempfile.path }}"
+        mode: '0755'
+
+    - name: prepare file with commands, header
+      lineinfile: 
+        path: "{{ thetempfile.path }}"
+        line: "### check and execute output file {{ thetempfile.path }} whose content is"
+        state: present
+    - name: prepare file with commands, body
+      lineinfile: 
+        path: "{{ thetempfile.path }}"
+        line: ceph --cluster {{ cluster }} osd crush create-or-move osd.{{ item.osd }} 1. {{ item.crushtype }}={{ item.crushname }}
+        state: present
+      register: cmd_dict_output
+      with_items:
+       - "{{ cmd_dict }}"
+
+    - debug: msg="### Please check (for OSD weights) and execute file {{ thetempfile.path }}"

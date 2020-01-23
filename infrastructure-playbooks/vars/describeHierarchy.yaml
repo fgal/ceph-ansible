@@ -1,0 +1,119 @@
+###
+
+crush_map:
+  10.3.3.11:
+    name: r1srv07
+    subelem:
+      - name: r1srv07sto1
+        type: storage
+        min: 10
+        max: 39
+      - name: r1srv07sto1
+        type: storage
+        min: 140
+        max: 149
+      - name: r1srv07sto2
+        type: storage
+        min: 40
+        max: 69
+      - name: r1srv07sto2
+        type: storage
+        min: 80
+        max: 89
+  10.3.3.14:
+    name: r1srv02
+    subelem:
+      - name: r1srv02sto1
+        type: storage
+        min: 60
+        max: 89
+      - name: r1srv02sto1
+        type: storage
+        min: 160
+        max: 169
+      - name: r1srv02sto2
+        type: storage
+        min: 90
+        max: 119
+      - name: r1srv02sto2
+        type: storage
+        min: 120
+        max: 129
+
+  10.3.3.12:
+    name: r2srv07
+    subelem:
+      - name: r2srv07sto1
+        type: storage
+        min: 10
+        max: 39
+      - name: r2srv07sto1
+        type: storage
+        min: 140
+        max: 149
+      - name: r2srv07sto2
+        type: storage
+        min: 40
+        max: 69
+      - name: r2srv07sto2
+        type: storage
+        min: 80
+        max: 89
+  10.3.3.15:
+    name: r2srv10
+    subelem:
+      - name: r2srv10sto1
+        type: storage
+        min: 60
+        max: 89
+      - name: r2srv10sto1
+        type: storage
+        min: 160
+        max: 169
+      - name: r2srv10sto2
+        type: storage
+        min: 90
+        max: 119
+      - name: r2srv10sto2
+        type: storage
+        min: 120
+        max: 129
+
+  10.3.3.13:
+    name: r3srv07
+    subelem:
+      - name: r3srv07sto1
+        type: storage
+        min: 10
+        max: 39
+      - name: r3srv07sto1
+        type: storage
+        min: 140
+        max: 149
+      - name: r3srv07sto2
+        type: storage
+        min: 40
+        max: 69
+      - name: r3srv07sto2
+        type: storage
+        min: 80
+        max: 89
+  10.3.3.16:
+    name: r3srv16
+    subelem:
+      - name: r3srv16sto1
+        type: storage
+        min: 60
+        max: 89
+      - name: r3srv16sto1
+        type: storage
+        min: 160
+        max: 169
+      - name: r3srv16sto2
+        type: storage
+        min: 90
+        max: 119
+      - name: r3srv16sto2
+        type: storage
+        min: 120
+        max: 129
