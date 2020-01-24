@@ -135,13 +135,6 @@
         osd_map: "{{ osd_map|default([]) + [ {'ip': item.stdout | regex_search('THEIP:(.*)\n','\\1') | first, 'osd': item.stdout | regex_search('THEOSD:(.*)\\n','\\1') | first, 'device': item.stdout | regex_search('DEVICE:(.*)','\\1') | first, 'lun': item.stdout | regex_search('LUN:(.*)','\\1') | first } ] }}"
       with_items: "{{ lun_paths.results }}"
 
-    - name: find storage name
-      set_fact:
-        var1: "{{ crush_map[item.ip].subelem | selectattr('name','equalto','r1srv07sto1') | list }}"
-        var2: "{{ crush_map[item.ip].subelem | selectattr('max','ge',item.lun | int) | selectattr('min','le',item.lun | int) | map(attribute='name') | list | first }}"
-      with_items:
-       - "{{ osd_map }}"
-
     - name: final dict with all required info
       set_fact:
         cmd_dict: "{{ cmd_dict|default([]) + [ {'ip': item.ip,
