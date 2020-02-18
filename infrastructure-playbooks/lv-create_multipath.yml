@@ -12,9 +12,9 @@
       {% for hdd in hdd_devices | sort %}
         - data: {{ hdd_lv_prefix }}-{{ hdd.split('/')[-1] }}
           data_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
-          journal: {{ hdd_journal_prefix }}-{{ hdd.split('/')[-1] }}
-          journal_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
       {% endfor %}
+#          journal: {{ hdd_journal_prefix }}-{{ hdd.split('/')[-1] }}
+#          journal_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
 
   tasks:
 
@@ -72,14 +72,14 @@
     with_items:
       - "{{ hdd_devices }}"
 
-  - name: create lvs for fs journals for hdd devices
-    lvol:
-      lv: "{{ hdd_journal_prefix }}-{{ item.split('/')[-1] }}"
-      vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
-      size: "{{ journal_size }}"
-      state: present
-    with_items:
-      - "{{ hdd_devices }}"
+#  - name: create lvs for fs journals for hdd devices
+#    lvol:
+#      lv: "{{ hdd_journal_prefix }}-{{ item.split('/')[-1] }}"
+#      vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
+#      size: "{{ journal_size }}"
+#      state: present
+#    with_items:
+#      - "{{ hdd_devices }}"
 
   - name: create lvs for the data portion on hdd devices
     lvol:
