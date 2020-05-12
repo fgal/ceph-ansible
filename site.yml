@@ -15,7 +15,7 @@
   - iscsigws
   - iscsi-gws # for backward compatibility only!
 
-  gather_facts: false
+  gather_facts: true
 
   tags:
     - always
