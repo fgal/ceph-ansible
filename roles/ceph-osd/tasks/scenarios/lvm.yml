@@ -17,3 +17,4 @@
   environment:
     CEPH_VOLUME_DEBUG: 1
   with_items: "{{ lvm_volumes }}"
+  tags: runcreateosds
