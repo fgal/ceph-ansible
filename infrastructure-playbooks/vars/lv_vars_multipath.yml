@@ -1,0 +1,30 @@
+## CHANGE THESE VARS ##
+
+# Path of hdd devices designated for LV creation (will be overridden)
+hdd_devices:
+  - /dev/sdd
+  - /dev/sde
+  - /dev/sdf
+  - /dev/sdg
+  - /dev/sdh
+
+# Per the lvol module documentation, "size" and "journal_size" is the size of the logical volume, according to lvcreate(8) --size. 
+# This is by default in megabytes or optionally with one of [bBsSkKmMgGtTpPeE] units; or according to lvcreate(8) --extents as a percentage of [VG|PVS|FREE]; Float values must begin with a digit.
+# For further reading and examples see: https://docs.ansible.com/ansible/2.6/modules/lvol_module.html
+
+# Suggested journal size is 5500
+journal_size: 20000
+
+
+# the path to where to save the logfile for lv-create.yml
+logfile_path: ../lv-create.log
+
+# all hdd's have to be the same size and the LVs on them are dedicated for OSD data
+hdd_lv_size: 100%FREE
+
+# Since this playbook can be run multiple times across different devices, {{ var.split('/')[-1] }} is used quite frequently in this play-book.
+# This is used to strip the device name away from its path (ex: sdc from /dev/sdc) to differenciate the names of vgs, journals, or lvs if the prefixes are not changed across multiple runs.
+
+hdd_vg_prefix: ceph-hdd-vg
+hdd_lv_prefix: ceph-hdd-lv
+hdd_journal_prefix: ceph-journal
