@@ -74,7 +74,16 @@
     - name: set_fact docker_exec_cmd build docker exec command (containerized)
       set_fact:
         docker_exec_cmd: "docker exec ceph-mon-{{ hostvars[groups[mon_group_name][0]]['ansible_hostname'] }}"
-      when: containerized_deployment
+      when:
+      - containerized_deployment
+      - groups.get(mon_group_name, []) | length > 0
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+
+    - name: set_fact docker_exec_cmd build docker exec command (containerized)
+      set_fact:
+        docker_exec_cmd: " "
+      when:
+      - not containerized_deployment
 
     - name: exit playbook, if can not connect to the cluster
       command: "{{ docker_exec_cmd }} timeout 5 ceph --cluster {{ cluster }} health"
@@ -90,16 +99,16 @@
       delegate_to: "{{ groups[mon_group_name][0] }}"
       register: find_osd_hosts
 
-#    - debug: var=find_osd_hosts
+    - debug: var=find_osd_hosts
 
     - name: set_fact osd_disks
       set_fact:
-        osd_disks: "{{ osd_disks | default([]) + [ { 'theosd': (item.stdout | from_json).osd , 'theip': (item.stdout | from_json).ip.split(':')[0] } ] }}"
+        osd_disks: "{{ osd_disks | default([]) + [ { 'theosd': (item.stdout | from_json).osd , 'theip': (item.stdout | from_json).addrs.addrvec[0].addr.split(':')[0] } ] }}"
       with_items: "{{ find_osd_hosts.results }}"
       when:
         - not (item.stdout | from_json).crush_location
 
-#    - debug: var=osd_disks
+    - debug: var=osd_disks
 
     - name: check if ceph admin key exists on the osd nodes
       stat:
@@ -134,6 +143,8 @@
       set_fact:
         osd_map: "{{ osd_map|default([]) + [ {'ip': item.stdout | regex_search('THEIP:(.*)\n','\\1') | first, 'osd': item.stdout | regex_search('THEOSD:(.*)\\n','\\1') | first, 'device': item.stdout | regex_search('DEVICE:(.*)','\\1') | first, 'lun': item.stdout | regex_search('LUN:(.*)','\\1') | first } ] }}"
       with_items: "{{ lun_paths.results }}"
+
+    - debug: var=osd_map
 
     - name: final dict with all required info
       set_fact:
