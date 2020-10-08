@@ -1,0 +1,72 @@
+# This file was modified with respect to the original file, to allow creation of VG/LV on OSD, having RocksDB on separate hardware (SSD)
+#
+## CHANGE THESE VARS ##
+#
+# The NVMe device and the hdd devices must be raw and not have any GPT, FS, or RAID signatures. 
+# GPT, FS, & RAID signatures should be removed from a device prior to running the lv-create.yml playbook. 
+# 
+# Having leftover signatures can result in ansible errors that say "device $device_name excluded by a filter" after running the lv-create.yml playbook.
+# This can be done by running `wipefs -a $device_name`.
+
+# Path of fast device primed for LV creation for RocksDB (and WAL), for hdd_devices
+rocksdb_hdd_devices:
+  - /dev/sdi
+  - /dev/sdj
+  - /dev/sdk
+
+# Suggested RocksDB size in MB. Note it needs to be 30 GB at most (see http://lists.ceph.com/pipermail/ceph-users-ceph.com/2019-March/033690.html)
+rocksdb_size: 40000
+
+# how many hdd_devices per rocksdb are to be expected
+hdd_num_per_rocksdb: 5
+
+# Path of hdd devices designated for LV creation.
+hdd_devices:
+  - /dev/sda
+  - /dev/sdb
+#   - /dev/sdc
+#   - /dev/sdl
+#   - /dev/sdm
+#   - /dev/sdn
+#   - /dev/sdo
+#   - /dev/sdp
+#   - /dev/sdq
+#   - /dev/sdr
+#   - /dev/sds
+#   - /dev/sdt
+#   - /dev/sdu
+#   - /dev/sdv
+#   - /dev/sdw
+
+# These devices will be configured as single OSD, all-inclusive of Rocks/WAL
+
+ssd_devices:
+  - /dev/sdd
+#  - /dev/sde
+#  - /dev/sdf
+#  - /dev/sdg
+#  - /dev/sdh
+
+
+# This var is a list of bucket index LVs created on the NVMe device. We recommend one be created but you can add others
+nvme_device_lvs:
+  - lv_name: "ceph-bucket-index-1"
+    size: 100%FREE
+    journal_name: "ceph-journal-bucket-index-1-{{ nvme_device_basename }}"
+
+## TYPICAL USERS WILL NOT NEED TO CHANGE VARS FROM HERE DOWN ##
+
+# the path to where to save the logfile for lv-create.yml
+logfile_path: ./lv-create.log
+
+# all hdd's have to be the same size and the LVs on them are dedicated for OSD data
+hdd_lv_size: 100%FREE
+ssd_lv_size: 100%FREE
+
+
+hdd_vg_prefix: "ceph-hdd-vg"
+hdd_lv_prefix: "ceph-hdd-lv"
+rocks_vg_prefix: "ceph-rocks-vg"
+rocks_lv_prefix: "ceph-rocks-lv"
+ssd_vg_prefix: "ceph-ssd-vg"
+ssd_lv_prefix: "ceph-ssd-lv"

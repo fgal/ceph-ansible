@@ -6,17 +6,15 @@
     logfile: |
       Suggested cut and paste under "lvm_volumes:" in "group_vars/osds.yml"
       -----------------------------------------------------------------------------------------------------------
-      {% for lv in nvme_device_lvs %}
-        - data: {{ lv.lv_name }}
-          data_vg: {{ nvme_vg_name }}
-          journal: {{ lv.journal_name }}
-          journal_vg: {{ nvme_vg_name }}
+      {% for ssd in ssd_devices %}
+        - data: {{ ssd_lv_prefix }}-{{ ssd.split('/')[-1] }}
+          data_vg: {{ ssd_vg_prefix }}-{{ ssd.split('/')[-1] }}
       {% endfor %}
       {% for hdd in hdd_devices %}
         - data: {{ hdd_lv_prefix }}-{{ hdd.split('/')[-1] }}
           data_vg: {{ hdd_vg_prefix }}-{{ hdd.split('/')[-1] }}
-          journal: {{ hdd_journal_prefix }}-{{ hdd.split('/')[-1] }}
-          journal_vg: {{ nvme_vg_name }}
+          db: {{ rocks_lvs[ loop.index - 1 ].split('-=-')[-1] }}
+          db_vg: {{ rocks_lvs[ loop.index - 1 ].split('-=-')[-2] }}
       {% endfor %}
 
   tasks:
@@ -26,11 +24,26 @@
       file: lv_vars.yaml
     failed_when: false
 
-  # ensure nvme_device is set
-  - name: fail if nvme_device is not defined
-    fail:
-      msg: "nvme_device has not been set by the user"
-    when: nvme_device is undefined or nvme_device == 'dummy'
+#  - name: create new list
+#    set_fact:
+#      hdd_devices_new: "{{ hdd_devices_new | default([]) + [ rocksdb_hdd_devices[item|int % rocksdb_hdd_devices|length ] ] }}"
+#    with_sequence: start=0 end={{ hdd_devices|length - 1}}
+#  - debug: var=hdd_devices|length
+#  - debug: var=hdd_devices_new
+
+  - name: create new ROCKS list
+    set_fact:
+      rocks_lvs: "{{ rocks_lvs | default([]) + [ '-'.join(( 
+            rocksdb_hdd_devices[item|int % rocksdb_hdd_devices|length], '=',
+            rocks_vg_prefix , 
+            rocksdb_hdd_devices[item|int % rocksdb_hdd_devices|length].split('/')[-1] ,
+            '=' , rocks_lv_prefix , 
+            rocksdb_hdd_devices[item|int % rocksdb_hdd_devices|length].split('/')[-1] ,
+            hdd_devices[item|int].split('/')[-1] )) ] }}"
+    with_sequence: start=0 end={{ hdd_devices|length - 1}}
+
+  - debug: var=rocks_lvs
+
 
   # need to check if lvm2 is installed
   - name: install lvm2
@@ -40,39 +53,8 @@
     register: result
     until: result is succeeded
 
-  # Make entire nvme device a VG
-  - name: add nvme device as lvm pv
-    lvg:
-      force: yes
-      pvs: "{{ nvme_device }}"
-      pesize: 4
-      state: present
-      vg: "{{ nvme_vg_name }}"
 
-  - name: create lvs for fs journals for the bucket index on the nvme device
-    lvol:
-      lv: "{{ item.journal_name }}"
-      vg: "{{ nvme_vg_name }}"
-      size: "{{ journal_size }}"
-      pvs: "{{ nvme_device }}"
-    with_items: "{{ nvme_device_lvs }}"
-
-  - name: create lvs for fs journals for hdd devices
-    lvol:
-      lv: "{{ hdd_journal_prefix }}-{{ item.split('/')[-1] }}"
-      vg: "{{ nvme_vg_name }}"
-      size: "{{ journal_size }}"
-    with_items: "{{ hdd_devices }}"
-
-  - name: create the lv for data portion of the bucket index on the nvme device
-    lvol:
-      lv: "{{ item.lv_name }}"
-      vg: "{{ nvme_vg_name }}"
-      size: "{{ item.size }}"
-      pvs: "{{ nvme_device }}"
-    with_items: "{{ nvme_device_lvs }}"
-
-    # Make sure all hdd devices have a unique volume group
+  # Make sure all HDD devices have a unique volume group
   - name: create vgs for all hdd devices
     lvg:
       force: yes
@@ -81,14 +63,54 @@
       state: present
       vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
     with_items: "{{ hdd_devices }}"
-
-  - name: create lvs for the data portion on hdd devices
+  - name: create lvs for the data portion on HDD devices
     lvol:
       lv: "{{ hdd_lv_prefix }}-{{ item.split('/')[-1] }}"
       vg: "{{ hdd_vg_prefix }}-{{ item.split('/')[-1] }}"
       size: "{{ hdd_lv_size }}"
       pvs: "{{ item }}"
+      state: present
+      shrink: false
     with_items: "{{ hdd_devices }}"
+
+
+  # Make sure all SSD devices have a unique volume group
+  - name: create vgs for all SSD devices
+    lvg:
+      force: yes
+      pvs: "{{ item }}"
+      pesize: 4
+      state: present
+      vg: "{{ ssd_vg_prefix }}-{{ item.split('/')[-1] }}"
+    with_items: "{{ ssd_devices }}"
+  - name: create lvs for the data portion on SSD devices
+    lvol:
+      lv: "{{ ssd_lv_prefix }}-{{ item.split('/')[-1] }}"
+      vg: "{{ ssd_vg_prefix }}-{{ item.split('/')[-1] }}"
+      size: "{{ ssd_lv_size }}"
+      pvs: "{{ item }}"
+      state: present
+      shrink: false
+    with_items: "{{ ssd_devices }}"
+
+  # Make sure all ROCKS devices have a unique volume group
+  - name: create vgs for all ROCKS devices
+    lvg:
+      force: yes
+      pvs: "{{ item.split('-=-')[0] }}"
+      pesize: 4
+      state: present
+      vg: "{{ item.split('-=-')[-2] }}"
+    with_items: "{{ rocks_lvs }}"
+  - name: create lvs for the data portion on ROCKS devices
+    lvol:
+      lv: "{{ item.split('-=-')[-1] }}"
+      vg: "{{ item.split('-=-')[-2] }}"
+      size: "{{ rocksdb_size }}"
+      state: present
+      shrink: false
+    with_items: "{{ rocks_lvs }}"
+
 
   - name: "write output for osds.yml to {{ logfile_path }}"
     become: false
