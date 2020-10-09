@@ -4,8 +4,10 @@
 
   vars:
     logfile: |
-      Suggested cut and paste under "lvm_volumes:" in "group_vars/osds.yml"
-      -----------------------------------------------------------------------------------------------------------
+      # Suggested cut and paste under "lvm_volumes:" in "group_vars/osds.yml" for configuring with osd_scenario=lvm
+      # -----------------------------------------------------------------------------------------------------------
+      # {{ ansible_hostname }}
+      lvm_volumes:
       {% for ssd in ssd_devices %}
         - data: {{ ssd_lv_prefix }}-{{ ssd.split('/')[-1] }}
           data_vg: {{ ssd_vg_prefix }}-{{ ssd.split('/')[-1] }}
@@ -112,9 +114,9 @@
     with_items: "{{ rocks_lvs }}"
 
 
-  - name: "write output for osds.yml to {{ logfile_path }}"
+  - name: "write output for osds.yml to {{ logfile_path }}_{{ ansible_hostname }}"
     become: false
     copy:
       content: "{{ logfile }}"
-      dest: "{{ logfile_path }}"
+      dest: "{{ logfile_path }}_{{ ansible_hostname }}"
     delegate_to: localhost

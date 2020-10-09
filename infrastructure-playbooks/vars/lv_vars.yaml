@@ -24,10 +24,10 @@ hdd_num_per_rocksdb: 5
 hdd_devices:
   - /dev/sda
   - /dev/sdb
-#   - /dev/sdc
-#   - /dev/sdl
-#   - /dev/sdm
-#   - /dev/sdn
+  - /dev/sdc
+  - /dev/sdl
+  - /dev/sdm
+  - /dev/sdn
 #   - /dev/sdo
 #   - /dev/sdp
 #   - /dev/sdq
@@ -42,7 +42,7 @@ hdd_devices:
 
 ssd_devices:
   - /dev/sdd
-#  - /dev/sde
+  - /dev/sde
 #  - /dev/sdf
 #  - /dev/sdg
 #  - /dev/sdh
