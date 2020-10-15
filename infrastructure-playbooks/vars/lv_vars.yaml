@@ -28,10 +28,10 @@ hdd_devices:
   - /dev/sdl
   - /dev/sdm
   - /dev/sdn
-#   - /dev/sdo
-#   - /dev/sdp
-#   - /dev/sdq
-#   - /dev/sdr
+  - /dev/sdo
+  - /dev/sdp
+  - /dev/sdq
+  - /dev/sdr
 #   - /dev/sds
 #   - /dev/sdt
 #   - /dev/sdu
