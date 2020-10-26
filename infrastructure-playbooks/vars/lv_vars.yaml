@@ -32,20 +32,20 @@ hdd_devices:
   - /dev/sdp
   - /dev/sdq
   - /dev/sdr
-#   - /dev/sds
-#   - /dev/sdt
-#   - /dev/sdu
-#   - /dev/sdv
-#   - /dev/sdw
+  - /dev/sds
+  - /dev/sdt
+  - /dev/sdu
+  - /dev/sdv
+  - /dev/sdw
 
 # These devices will be configured as single OSD, all-inclusive of Rocks/WAL
 
 ssd_devices:
   - /dev/sdd
   - /dev/sde
-#  - /dev/sdf
-#  - /dev/sdg
-#  - /dev/sdh
+  - /dev/sdf
+  - /dev/sdg
+  - /dev/sdh
 
 
 # This var is a list of bucket index LVs created on the NVMe device. We recommend one be created but you can add others
