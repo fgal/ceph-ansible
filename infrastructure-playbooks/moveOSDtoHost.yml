@@ -25,7 +25,7 @@
 
 ###
 
-- name: confirm whether user really meant to remove osd(s) from the cluster
+- name: confirm whether user really meant to move osd(s) to the proper OSD server in the cluster
 
   hosts:
     - localhost
@@ -182,4 +182,4 @@
       with_items:
        - "{{ cmd_dict }}"
 
-    - debug: msg="### Please check (for OSD weights) and execute file {{ thetempfile.path }}"
+    - debug: msg="### Please check (for OSD weights) and execute file {{ thetempfile.path }} "
