@@ -20,11 +20,21 @@
       {% endfor %}
 
   tasks:
-
+  - name: check existence of vars file lv_vars.yaml_{{ ansible_hostname }}
+    stat:
+      path: "{{ playbook_dir }}/vars/lv_vars.yaml_{{ ansible_hostname }}"
+    register: stat_vars_hostname
+    delegate_to: localhost
+  - name: include vars of lv_vars.yaml_{{ ansible_hostname }}
+    include_vars:
+      file: "lv_vars.yaml_{{ ansible_hostname }}"
+    failed_when: false
+    when: stat_vars_hostname.stat.exists
   - name: include vars of lv_vars.yaml
     include_vars:
       file: lv_vars.yaml
     failed_when: false
+    when: not stat_vars_hostname.stat.exists
 
 #  - name: create new list
 #    set_fact:
