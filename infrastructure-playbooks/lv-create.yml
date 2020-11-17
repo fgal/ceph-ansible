@@ -50,12 +50,12 @@
             rocks_vg_prefix , 
             rocksdb_hdd_devices[item|int % rocksdb_hdd_devices|length].split('/')[-1] ,
             '=' , rocks_lv_prefix , 
-            rocksdb_hdd_devices[item|int % rocksdb_hdd_devices|length].split('/')[-1] ,
-            hdd_devices[item|int].split('/')[-1] )) ] }}"
+            hdd_devices[item|int].split('/')[-1], 'vg',
+            rocksdb_hdd_devices[item|int % rocksdb_hdd_devices|length].split('/')[-1] )) ] }}"
     with_sequence: start=0 end={{ hdd_devices|length - 1}}
 
   - debug: var=rocks_lvs
-
+  - pause:
 
   # need to check if lvm2 is installed
   - name: install lvm2
