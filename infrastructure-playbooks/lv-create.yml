@@ -25,9 +25,9 @@
       path: "{{ playbook_dir }}/vars/lv_vars.yaml_{{ ansible_hostname }}{{ ansible_domain }}"
     register: stat_vars_hostname
     delegate_to: localhost
-  - name: include vars of lv_vars.yaml_{{ ansible_hostname }}{{ ansible_domain }}
+  - name: include vars of lv_vars.yaml_{{ ansible_hostname }}.{{ ansible_domain }}
     include_vars:
-      file: "lv_vars.yaml_{{ ansible_hostname }}{{ ansible_domain }}"
+      file: "lv_vars.yaml_{{ ansible_hostname }}.{{ ansible_domain }}"
     failed_when: false
     when: stat_vars_hostname.stat.exists
   - name: include vars of lv_vars.yaml
@@ -55,7 +55,7 @@
     with_sequence: start=0 end={{ hdd_devices|length - 1}}
 
   - debug: var=rocks_lvs
-  - pause:
+#  - pause:
 
   # need to check if lvm2 is installed
   - name: install lvm2
