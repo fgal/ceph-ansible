@@ -20,9 +20,9 @@
       {% endfor %}
 
   tasks:
-  - name: check existence of vars file lv_vars.yaml_{{ ansible_hostname }}{{ ansible_domain }}
+  - name: check existence of vars file lv_vars.yaml_{{ ansible_hostname }}.{{ ansible_domain }}
     stat:
-      path: "{{ playbook_dir }}/vars/lv_vars.yaml_{{ ansible_hostname }}{{ ansible_domain }}"
+      path: "{{ playbook_dir }}/vars/lv_vars.yaml_{{ ansible_hostname }}.{{ ansible_domain }}"
     register: stat_vars_hostname
     delegate_to: localhost
   - name: include vars of lv_vars.yaml_{{ ansible_hostname }}.{{ ansible_domain }}
@@ -55,7 +55,6 @@
     with_sequence: start=0 end={{ hdd_devices|length - 1}}
 
   - debug: var=rocks_lvs
-#  - pause:
 
   # need to check if lvm2 is installed
   - name: install lvm2
