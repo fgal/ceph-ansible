@@ -15,7 +15,7 @@ rocksdb_hdd_devices:
   - /dev/sdk
 
 # Suggested RocksDB size in MB. Note it needs to be 30 GB at most (see http://lists.ceph.com/pipermail/ceph-users-ceph.com/2019-March/033690.html)
-rocksdb_size: 40000
+rocksdb_size: 80000
 
 # how many hdd_devices per rocksdb are to be expected
 hdd_num_per_rocksdb: 5
