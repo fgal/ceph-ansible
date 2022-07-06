@@ -6,7 +6,7 @@
   failed_when: false
   register: systempython
   with_items:
-    - /usr/bin/python
+#    - /usr/bin/python
     - /usr/bin/python3
     - /usr/libexec/platform-python
 
