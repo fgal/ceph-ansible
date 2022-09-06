@@ -10,24 +10,22 @@
 
 # Path of fast device primed for LV creation for RocksDB (and WAL), for hdd_devices
 rocksdb_hdd_devices:
-  - /dev/sdj
-  - /dev/sdk
   - /dev/sdl
+  - /dev/sdm
+  - /dev/sdn
 
 # Suggested RocksDB size in MB. Note it needs to be 30 GB at most (see http://lists.ceph.com/pipermail/ceph-users-ceph.com/2019-March/033690.html)
-rocksdb_size: 40000
+rocksdb_size: 80000
 
 # how many hdd_devices per rocksdb are to be expected
 hdd_num_per_rocksdb: 5
 
 # Path of hdd devices designated for LV creation.
 hdd_devices:
-  - /dev/sda
-  - /dev/sdb
   - /dev/sdc
   - /dev/sdd
-  - /dev/sdm
-  - /dev/sdn
+  - /dev/sde
+  - /dev/sdf
   - /dev/sdo
   - /dev/sdp
   - /dev/sdq
@@ -37,15 +35,17 @@ hdd_devices:
   - /dev/sdu
   - /dev/sdv
   - /dev/sdw
+  - /dev/sdx
+  - /dev/sdy
 
 # These devices will be configured as single OSD, all-inclusive of Rocks/WAL
 
 ssd_devices:
-  - /dev/sde
-  - /dev/sdf
   - /dev/sdg
   - /dev/sdh
   - /dev/sdi
+  - /dev/sdj
+  - /dev/sdk
 
 
 # This var is a list of bucket index LVs created on the NVMe device. We recommend one be created but you can add others
