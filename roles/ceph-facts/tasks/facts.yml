@@ -176,6 +176,20 @@
       set_fact:
         fsid: "{{ cluster_uuid.stdout }}"
 
+#FG#
+- name: set useful variable logfile_path
+  set_fact:
+    logfile_path: "{{ playbook_dir }}/lv-create.log"
+- name: check if file containing list of LVM volumes exists
+  stat: 
+    path: "{{ logfile_path }}_{{ ansible_facts.hostname }}"
+  delegate_to: localhost
+  register: lvm_volumes_file
+- name: Include file with lvm_volumes definitions
+  include_vars: "{{ logfile_path }}_{{ ansible_facts.hostname }}"
+  delegate_to: localhost
+  when: lvm_volumes_file.stat.exists == True
+
 - name: import_tasks devices.yml
   import_tasks: devices.yml
   when: inventory_hostname in groups.get(osd_group_name, [])
