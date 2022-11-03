@@ -27,7 +27,7 @@
     delegate_to: localhost
   - name: include vars of lv_vars.yaml_{{ ansible_facts.hostname }}.{{ ansible_facts.domain }}
     include_vars:
-      file: lv_vars.yaml_"{{ ansible_facts.hostname }}.{{ ansible_facts.domain }}"
+      file: lv_vars.yaml_{{ ansible_facts.hostname }}.{{ ansible_facts.domain }}
     failed_when: false
     when: stat_vars_hostname.stat.exists
   - name: include vars of lv_vars.yaml
