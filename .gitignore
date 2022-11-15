@@ -13,6 +13,7 @@ group_vars/*.yml
 /*.yml
 *.pyc
 *.sw?
+*~
 .tox
 ceph-ansible.spec
 *.retry
