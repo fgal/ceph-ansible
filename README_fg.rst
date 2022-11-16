@@ -53,6 +53,7 @@ As Ceph administrator user::
 - ``git reset --hard upstream/stable-6.0``
 - ``git checkout -b csdprod-6.0``
 - ``git reset --hard origin/csdprod-6.0``
+- ``git branch --set-upstream-to=origin/csdprod-6.0 csdprod-6.0``
 - ``git branch``
 - ``git log --graph  --decorate``
 
