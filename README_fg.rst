@@ -42,6 +42,7 @@ As ``root`` user, just the first time::
 
 - ``cd ../<workdir>/``
 - ``python3 -m pip install -r requirements.txt``
+- ``/usr/local/bin/ansible-galaxy collection install ansible.utils``
 
 As Ceph administrator user::
 
