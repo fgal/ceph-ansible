@@ -38,10 +38,13 @@ Development cycle, incorporate changes in official branch:
 How to update working areas
 ---------------------------
 
-As ``root`` user, just the first time::
+As ``root`` user, once::
 
 - ``cd ../<workdir>/``
 - ``python3 -m pip install -r requirements.txt``
+
+As Ceph administrator user, just once::
+
 - ``/usr/local/bin/ansible-galaxy collection install ansible.utils``
 
 As Ceph administrator user::
