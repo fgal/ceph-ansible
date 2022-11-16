@@ -8,8 +8,9 @@ GARR setup, powering the GARR Federated Cloud (https://cloud.garr.it/)
 
 Specifically:
 
-- at time of writing (2020-09-04), this fork is based on ``stable-6.0`` and as such it need Ansible ``2.10``
-- finally got rid of possibility to handle LUNs served from a SAN: see older branch based on stable4.0
+- at time of writing (2020-09-04), this fork is based on ``stable-6.0`` and as such it needs Ansible ``2.10``
+- finally got rid of possibility to handle LUNs served from a SAN: see older branch csdprod-4.0 based on stable-4.0
+
 
 How to update this fork
 -----------------------
@@ -33,6 +34,28 @@ Development cycle, incorporate changes in official branch:
 - ``git rebase stable-4.0``
 - ``git push origin csdprod``
 
+
+How to update working areas
+---------------------------
+
+As ``root`` user, just the first time::
+
+- ``cd ../<workdir>/``
+- ``python3 -m pip install -r requirements.txt``
+
+As Ceph administrator user::
+
+- ``cd ../<workdir>/``
+- ``git branch``
+- ``git fetch --all``
+- ``git checkout -b stable-6.0``
+- ``git reset --hard upstream/stable-6.0``
+- ``git checkout -b csdprod-6.0``
+- ``git reset --hard origin/csdprod-6.0``
+- ``git branch``
+- ``git log --graph  --decorate``
+
+
 How to start from scratch
 -------------------------
 
@@ -40,21 +63,6 @@ How to start from scratch
 - ``git checkout --track upstream/stable-6.0``
 - ``ln -sf <path> cluster-primary``
 - check ``infrastructure_playbooks/lv-create.yaml`` and ensure the proper files are generated
-- add loading of specific  ``
-
-
-   49  pip3 install 'ansible-core>=2.10.0,<2.11.0'
-   50  pip3 remove ansible-core
-   51  pip3 delete ansible
-   52  pip3 help
-   53  pip3 uninstall ansible-core
-   54  pip3 install ansible-base
-  209  pip3 install ansible-utils
-  210  pip3 install ansible-util
-  211  pip3 install ansible-utils
-  212  pip3 install ansible-utils
-python3 -m pip install -r ~cephmgr/Ansible/Prod/ceph-ansible-PA1/requirements.txt
-less ansible-galaxy collection install ansible.utils
-
+- add loading of specific  lv-create file, see `roles/ceph-facts/tasks/facts.yml`, text flagged with `FG`
 
 
