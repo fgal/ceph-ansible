@@ -45,7 +45,7 @@ As ``root`` user, once::
 
 As Ceph administrator user, just once::
 
-- ``/usr/local/bin/ansible-galaxy collection install ansible.utils``
+- ``ansible-galaxy collection install -r requirements.yml``
 
 As Ceph administrator user::
 
