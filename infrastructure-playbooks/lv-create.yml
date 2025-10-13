@@ -56,12 +56,12 @@
   - debug: var=rocks_lvs
 
   # need to check if lvm2 is installed
-  - name: install lvm2
-    package:
-      name: lvm2
-      state: present
-    register: result
-    until: result is succeeded
+#  - name: install lvm2
+#    package:
+#      name: lvm2
+#      state: present
+#    register: result
+#    until: result is succeeded
 
 #   # Make entire nvme device a VG
 #   - name: add nvme device as lvm pv

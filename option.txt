@@ -1,0 +1,2 @@
+[osd.XX]
+osd_find_best_info_ignore_history_les = true

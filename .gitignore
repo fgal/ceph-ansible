@@ -22,5 +22,5 @@ ceph-ansible.spec
 !raw_install_python.yml
 !requirements.yml
 lv-create.log_*
-cluster-ct1-prod
+cluster-*-prod
 cluster-primary
