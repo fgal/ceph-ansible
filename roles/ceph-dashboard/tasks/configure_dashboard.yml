@@ -323,6 +323,7 @@
       delegate_to: "{{ groups[mon_group_name][0] }}"
       with_items: "{{ groups[iscsi_gw_group_name] }}"
       when: ip_version == 'ipv4'
+      tags: ceph_dashboard
 
     - name: add iscsi gateways - ipv6
       command: "{{ ceph_cmd }} --cluster {{ cluster }} dashboard iscsi-gateway-add -i -"
@@ -333,6 +334,7 @@
       delegate_to: "{{ groups[mon_group_name][0] }}"
       with_items: "{{ groups[iscsi_gw_group_name] }}"
       when: ip_version == 'ipv6'
+      tags: ceph_dashboard
 
 - name: disable mgr dashboard module (restart)
   ceph_mgr_module:
